@@ -1,0 +1,6 @@
+# Core application dependencies
+pandas
+opencv-python
+PyYAML
+pydantic
+# TensorFlow Lite runtime will be added later for the Pi
