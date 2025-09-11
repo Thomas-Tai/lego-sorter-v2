@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual Environment
+venv/
+.venv/
+
+# IDEs and editors
+.idea/
+.vscode/
+
+# Data - We only track the structure, not the large files
+# 確保 large data files and databases are not committed.
+data/images/
+data/processed/*.sqlite
+
+# OS-specific
+.DS_Store
+Thumbs.db
