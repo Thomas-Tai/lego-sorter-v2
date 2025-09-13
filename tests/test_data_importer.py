@@ -8,6 +8,7 @@ import pandas as pd
 from pathlib import Path
 from tools.data_importer import DataImporter
 
+
 # --- Fixture for creating a reusable importer instance ---
 @pytest.fixture
 def configured_importer(tmp_path):
@@ -20,25 +21,32 @@ def configured_importer(tmp_path):
 
     # Create mock CSVs, now including extra data that needs to be filtered out
     (raw_data_path / "sets.csv").write_text(
-        "set_num,name\n45345-1,Spike Essential\n99999-1,Other Set", encoding='utf-8'
+        "set_num,name\n45345-1,Spike Essential\n99999-1,Other Set", encoding="utf-8"
     )
     (raw_data_path / "inventories.csv").write_text(
-        "id,version,set_num\n123,1,45345-1\n456,1,99999-1", encoding='utf-8'
+        "id,version,set_num\n123,1,45345-1\n456,1,99999-1", encoding="utf-8"
     )
     (raw_data_path / "inventory_parts.csv").write_text(
-        "inventory_id,part_num,color_id,quantity\n123,3001,4,10\n123,3002,0,5\n456,9999,1,1", encoding='utf-8'
+        "inventory_id,part_num,color_id,quantity\n123,3001,4,10\n123,3002,0,5\n456,9999,1,1",
+        encoding="utf-8",
     )
     # The rest of the files can be simple for now
-    (raw_data_path / "parts.csv").write_text("part_num,name\n3001,Brick 2x4\n3002,Plate 1x1\n9999,Alien Head", encoding='utf-8')
-    (raw_data_path / "colors.csv").write_text("id,name\n4,Red\n0,Black\n1,Blue", encoding='utf-8')
+    (raw_data_path / "parts.csv").write_text(
+        "part_num,name\n3001,Brick 2x4\n3002,Plate 1x1\n9999,Alien Head",
+        encoding="utf-8",
+    )
+    (raw_data_path / "colors.csv").write_text(
+        "id,name\n4,Red\n0,Black\n1,Blue", encoding="utf-8"
+    )
 
     importer = DataImporter(raw_data_path=str(raw_data_path))
-    importer.target_set_nums = ['45345-1'] # Define our target
-    importer._load_csv_files() # Load the data
+    importer.target_set_nums = ["45345-1"]  # Define our target
+    importer._load_csv_files()  # Load the data
     return importer
 
 
 # --- Existing Tests (now using the fixture) ---
+
 
 def test_load_csv_files_success(configured_importer):
     """
@@ -57,6 +65,7 @@ def test_load_csv_files_success(configured_importer):
     assert isinstance(importer.inventory_parts_df, pd.DataFrame)
     assert not importer.inventory_parts_df.empty
 
+
 def test_load_csv_files_file_not_found(tmp_path):
     """
     Tests that a FileNotFoundError is correctly raised when a required CSV
@@ -68,7 +77,9 @@ def test_load_csv_files_file_not_found(tmp_path):
     with pytest.raises(FileNotFoundError):
         importer._load_csv_files()
 
+
 # --- NEW TEST CASE for the next feature ---
+
 
 def test_filter_data_isolates_target_set_parts(configured_importer):
     """
@@ -88,10 +99,12 @@ def test_filter_data_isolates_target_set_parts(configured_importer):
     # Verify that the main inventory DataFrame now only contains parts from our target inventory (id 123).
     # All parts from the 'Other Set' (inventory_id 456) should be gone.
     assert importer.inventory_parts_df is not None
-    assert len(importer.inventory_parts_df) == 2, "Should only contain the 2 parts from Spike Essential"
-    assert importer.inventory_parts_df['inventory_id'].unique().tolist() == [123]
+    assert (
+        len(importer.inventory_parts_df) == 2
+    ), "Should only contain the 2 parts from Spike Essential"
+    assert importer.inventory_parts_df["inventory_id"].unique().tolist() == [123]
 
     # Optional: Verify that other related DataFrames are also filtered
     # For example, parts_df should now only contain '3001' and '3002'
     assert len(importer.parts_df) == 2
-    assert '9999' not in importer.parts_df['part_num'].values
+    assert "9999" not in importer.parts_df["part_num"].values
