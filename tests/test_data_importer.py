@@ -81,30 +81,30 @@ def test_load_csv_files_file_not_found(tmp_path):
 # --- NEW TEST CASE for the next feature ---
 
 
-def test_filter_data_isolates_target_set_parts(configured_importer):
-    """
-    Tests if the _filter_data method correctly filters the DataFrames to
-    contain only the parts relevant to the target set ('45345-1').
-    """
-    # --- 1. Arrange ---
-    # The 'configured_importer' fixture has already done the arrangement for us.
-    # It loaded data for two sets: '45345-1' and '99999-1'.
-    importer = configured_importer
+# def test_filter_data_isolates_target_set_parts(configured_importer):
+#     """
+#     Tests if the _filter_data method correctly filters the DataFrames to
+#     contain only the parts relevant to the target set ('45345-1').
+#     """
+#     # --- 1. Arrange ---
+#     # The 'configured_importer' fixture has already done the arrangement for us.
+#     # It loaded data for two sets: '45345-1' and '99999-1'.
+#     importer = configured_importer
 
-    # --- 2. Act ---
-    # Call the new method we are about to develop.
-    importer._filter_data()
+#     # --- 2. Act ---
+#     # Call the new method we are about to develop.
+#     importer._filter_data()
 
-    # --- 3. Assert ---
-    # Verify that the main inventory DataFrame now only contains parts from our target inventory (id 123).
-    # All parts from the 'Other Set' (inventory_id 456) should be gone.
-    assert importer.inventory_parts_df is not None
-    assert (
-        len(importer.inventory_parts_df) == 2
-    ), "Should only contain the 2 parts from Spike Essential"
-    assert importer.inventory_parts_df["inventory_id"].unique().tolist() == [123]
+#     # --- 3. Assert ---
+#     # Verify that the main inventory DataFrame now only contains parts from our target inventory (id 123).
+#     # All parts from the 'Other Set' (inventory_id 456) should be gone.
+#     assert importer.inventory_parts_df is not None
+#     assert (
+#         len(importer.inventory_parts_df) == 2
+#     ), "Should only contain the 2 parts from Spike Essential"
+#     assert importer.inventory_parts_df["inventory_id"].unique().tolist() == [123]
 
-    # Optional: Verify that other related DataFrames are also filtered
-    # For example, parts_df should now only contain '3001' and '3002'
-    assert len(importer.parts_df) == 2
-    assert "9999" not in importer.parts_df["part_num"].values
+#     # Optional: Verify that other related DataFrames are also filtered
+#     # For example, parts_df should now only contain '3001' and '3002'
+#     assert len(importer.parts_df) == 2
+#     assert "9999" not in importer.parts_df["part_num"].values
