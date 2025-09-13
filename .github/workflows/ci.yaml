@@ -1,0 +1,63 @@
+# .github/workflows/ci.yaml
+
+# 工作流程的名稱，將會顯示在 GitHub 的 "Actions" 分頁中
+name: Python Application CI
+
+# 觸發此工作流程的事件
+on:
+  # 當有新的 Pull Request 被建立，且目標是 main 分支時觸發
+  pull_request:
+    branches: [ main ]
+  # 也可以在直接推送到 main 分支時觸發 (可選)
+  push:
+    branches: [ main ]
+
+# 定義此工作流程中需要執行的所有任務 (jobs)
+jobs:
+  # 我們只有一個任務，命名為 "build"
+  build:
+    # 指定此任務運行的虛擬環境作業系統
+    runs-on: ubuntu-latest
+
+    # 定義此任務需要執行的所有步驟 (steps)
+    steps:
+    # 第一步：簽出程式碼
+    # 這個動作會將您的儲存庫程式碼，下載到虛擬環境中
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    # 第二步：設定 Python 環境
+    # 我們明確指定使用 Python 3.11，與我們的開發環境完全一致
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    # 第三步：安裝依賴套件
+    # 這一步會安裝 requirements.txt 和 requirements-dev.txt 中的所有套件
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install -r requirements-dev.txt
+    
+    # 第四步：執行程式碼品質檢查 (Linter & Formatter)
+    # 這是我們的第一道品質防線
+    - name: Lint and format check with flake8 and black
+      run: |
+        # 檢查 PEP 8 風格
+        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+        # 檢查 black 格式化 (加上 --check 參數，只檢查不修改)
+        black . --check
+        
+    # 第五步：執行靜態類型檢查 (Type Checking)
+    # 這是我們的第二道品質防線，確保類型安全
+    - name: Type check with mypy
+      run: |
+        mypy .
+
+    # 第六步：執行單元測試 (Unit Tests)
+    # 這是我們的最終防線，確保所有功能邏輯都正確
+    - name: Test with pytest
+      run: |
+        pytest
