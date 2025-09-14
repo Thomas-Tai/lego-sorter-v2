@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """
 Data Importer Tool
 ==================
@@ -16,78 +15,102 @@ Best Practices Followed:
 
 import pandas as pd
 from pathlib import Path
-
+from typing import List
 
 class DataImporter:
     """
     A class responsible for processing Rebrickable data and building a local
     database.
     """
-
     def __init__(self, raw_data_path: str):
         """
         Initializes the DataImporter.
-
-        Args:
-            raw_data_path (str): The path to the directory containing the raw
-                                 Rebrickable CSV files.
         """
-        # Core Practice: Immediately convert the incoming path string into a
-        # smart and safe Path object. This is the first step in our best
-        # practice for handling special paths.
         self.raw_data_path = Path(raw_data_path)
+        self.target_set_nums: List[str] = []
 
-        # Initialize DataFrames to store the loaded data
-        self.sets_df = None
-        self.parts_df = None
-        self.colors_df = None
-        self.inventories_df = None
-        self.inventory_parts_df = None
-
-        # Define the list of required CSV files
+        self.sets_df: pd.DataFrame = None
+        self.parts_df: pd.DataFrame = None
+        self.colors_df: pd.DataFrame = None
+        self.inventories_df: pd.DataFrame = None
+        self.inventory_parts_df: pd.DataFrame = None
+        
         self.required_files = [
-            "sets.csv",
-            "parts.csv",
-            "colors.csv",
-            "inventories.csv",
-            "inventory_parts.csv",
+            "sets.csv", "parts.csv", "colors.csv", 
+            "inventories.csv", "inventory_parts.csv"
         ]
 
     def _load_csv_files(self):
         """
         Loads all required CSV files from the specified raw_data_path into
         pandas DataFrames.
-
-        Raises:
-            FileNotFoundError: If any of the required CSV files do not exist.
         """
         print(f"Loading CSV files from {self.raw_data_path}...")
-
         for filename in self.required_files:
-            # Core Practice: Use the / operator of the Path object to safely
-            # combine paths. This is safer than manual string concatenation
-            # and automatically handles OS-specific separators.
             file_path = self.raw_data_path / filename
-
             if not file_path.exists():
-                raise FileNotFoundError(
-                    f"Error: Required data file not found at '{file_path}'"
-                )
-
-            # Store the loaded DataFrame into the corresponding instance attribute
-            # based on the filename.
-            df_name = filename.replace(".csv", "_df")
-
-            # Core Practice: Explicitly specify encoding='utf-8' when reading CSVs.
-            df = pd.read_csv(file_path, encoding="utf-8")
+                raise FileNotFoundError(f"Error: Required data file not found at '{file_path}'")
+            df_name = filename.replace('.csv', '_df')
+            df = pd.read_csv(file_path, encoding='utf-8')
             setattr(self, df_name, df)
-
         print("All CSV files loaded successfully!")
 
+    def _filter_data(self):
+        """
+        Filters all loaded DataFrames to only contain data relevant to the
+        target_set_nums. This version is hardened to handle real-world data.
+        """
+        if not self.target_set_nums:
+            print("Warning: No target set numbers specified. Skipping filtering.")
+            return
+
+        print(f"Filtering data for target sets: {self.target_set_nums}...")
+
+        # --- DEFENSIVE DATA TYPING ---
+        # Ensure join keys are of the same type to prevent silent merge failures.
+        self.sets_df['set_num'] = self.sets_df['set_num'].astype(str)
+        self.inventories_df['set_num'] = self.inventories_df['set_num'].astype(str)
+        self.inventory_parts_df['inventory_id'] = self.inventory_parts_df['inventory_id'].astype(int)
+        self.inventories_df['id'] = self.inventories_df['id'].astype(int)
+
+        # --- STEP 1: Find the inventory IDs for our target sets ---
+        # For each set, we only want the latest version of the inventory.
+        # This prevents us from including parts from older, outdated inventories.
+        latest_inventories = self.inventories_df.loc[
+            self.inventories_df.groupby('set_num')['version'].idxmax()
+        ]
+        
+        # Now, merge this cleaned inventory list with our target sets.
+        target_inventories = pd.merge(
+            latest_inventories,
+            self.sets_df[self.sets_df['set_num'].isin(self.target_set_nums)],
+            on='set_num',
+            how='inner'
+        )
+
+        if target_inventories.empty:
+            raise ValueError(f"Could not find any inventories for target sets: {self.target_set_nums}")
+
+        target_inventory_ids = target_inventories['id'].unique().tolist()
+        
+        # --- STEP 2: Filter the main inventory_parts DataFrame ---
+        # This is the most critical filtering step.
+        self.inventory_parts_df = self.inventory_parts_df[
+            self.inventory_parts_df['inventory_id'].isin(target_inventory_ids)
+        ].copy() # Use .copy() to avoid SettingWithCopyWarning in pandas
+
+        # --- STEP 3: Use the filtered inventory to filter other DataFrames ---
+        relevant_part_nums = self.inventory_parts_df['part_num'].unique()
+        relevant_color_ids = self.inventory_parts_df['color_id'].unique()
+
+        # Filter parts and colors DataFrames
+        self.parts_df = self.parts_df[self.parts_df['part_num'].isin(relevant_part_nums)].copy()
+        self.colors_df = self.colors_df[self.colors_df['id'].isin(relevant_color_ids)].copy()
+
+        print("Data filtering complete!")
+
+
     # --- Subsequent methods will be implemented here ---
-    # def _filter_data(self):
-    #     pass
-    #
     # def _create_database(self):
     #     pass
     #

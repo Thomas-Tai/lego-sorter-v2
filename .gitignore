@@ -16,6 +16,7 @@ venv/
 # 確保 large data files and databases are not committed.
 data/images/
 data/processed/*.sqlite
+data/temp_real_data/
 
 # OS-specific
 .DS_Store
