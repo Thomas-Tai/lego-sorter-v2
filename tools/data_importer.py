@@ -17,11 +17,13 @@ import pandas as pd
 from pathlib import Path
 from typing import List
 
+
 class DataImporter:
     """
     A class responsible for processing Rebrickable data and building a local
     database.
     """
+
     def __init__(self, raw_data_path: str):
         """
         Initializes the DataImporter.
@@ -34,10 +36,13 @@ class DataImporter:
         self.colors_df: pd.DataFrame = None
         self.inventories_df: pd.DataFrame = None
         self.inventory_parts_df: pd.DataFrame = None
-        
+
         self.required_files = [
-            "sets.csv", "parts.csv", "colors.csv", 
-            "inventories.csv", "inventory_parts.csv"
+            "sets.csv",
+            "parts.csv",
+            "colors.csv",
+            "inventories.csv",
+            "inventory_parts.csv",
         ]
 
     def _load_csv_files(self):
@@ -49,9 +54,11 @@ class DataImporter:
         for filename in self.required_files:
             file_path = self.raw_data_path / filename
             if not file_path.exists():
-                raise FileNotFoundError(f"Error: Required data file not found at '{file_path}'")
-            df_name = filename.replace('.csv', '_df')
-            df = pd.read_csv(file_path, encoding='utf-8')
+                raise FileNotFoundError(
+                    f"Error: Required data file not found at '{file_path}'"
+                )
+            df_name = filename.replace(".csv", "_df")
+            df = pd.read_csv(file_path, encoding="utf-8")
             setattr(self, df_name, df)
         print("All CSV files loaded successfully!")
 
@@ -68,47 +75,54 @@ class DataImporter:
 
         # --- DEFENSIVE DATA TYPING ---
         # Ensure join keys are of the same type to prevent silent merge failures.
-        self.sets_df['set_num'] = self.sets_df['set_num'].astype(str)
-        self.inventories_df['set_num'] = self.inventories_df['set_num'].astype(str)
-        self.inventory_parts_df['inventory_id'] = self.inventory_parts_df['inventory_id'].astype(int)
-        self.inventories_df['id'] = self.inventories_df['id'].astype(int)
+        self.sets_df["set_num"] = self.sets_df["set_num"].astype(str)
+        self.inventories_df["set_num"] = self.inventories_df["set_num"].astype(str)
+        self.inventory_parts_df["inventory_id"] = self.inventory_parts_df[
+            "inventory_id"
+        ].astype(int)
+        self.inventories_df["id"] = self.inventories_df["id"].astype(int)
 
         # --- STEP 1: Find the inventory IDs for our target sets ---
         # For each set, we only want the latest version of the inventory.
         # This prevents us from including parts from older, outdated inventories.
         latest_inventories = self.inventories_df.loc[
-            self.inventories_df.groupby('set_num')['version'].idxmax()
+            self.inventories_df.groupby("set_num")["version"].idxmax()
         ]
-        
+
         # Now, merge this cleaned inventory list with our target sets.
         target_inventories = pd.merge(
             latest_inventories,
-            self.sets_df[self.sets_df['set_num'].isin(self.target_set_nums)],
-            on='set_num',
-            how='inner'
+            self.sets_df[self.sets_df["set_num"].isin(self.target_set_nums)],
+            on="set_num",
+            how="inner",
         )
 
         if target_inventories.empty:
-            raise ValueError(f"Could not find any inventories for target sets: {self.target_set_nums}")
+            raise ValueError(
+                f"Could not find any inventories for target sets: {self.target_set_nums}"
+            )
 
-        target_inventory_ids = target_inventories['id'].unique().tolist()
-        
+        target_inventory_ids = target_inventories["id"].unique().tolist()
+
         # --- STEP 2: Filter the main inventory_parts DataFrame ---
         # This is the most critical filtering step.
         self.inventory_parts_df = self.inventory_parts_df[
-            self.inventory_parts_df['inventory_id'].isin(target_inventory_ids)
-        ].copy() # Use .copy() to avoid SettingWithCopyWarning in pandas
+            self.inventory_parts_df["inventory_id"].isin(target_inventory_ids)
+        ].copy()  # Use .copy() to avoid SettingWithCopyWarning in pandas
 
         # --- STEP 3: Use the filtered inventory to filter other DataFrames ---
-        relevant_part_nums = self.inventory_parts_df['part_num'].unique()
-        relevant_color_ids = self.inventory_parts_df['color_id'].unique()
+        relevant_part_nums = self.inventory_parts_df["part_num"].unique()
+        relevant_color_ids = self.inventory_parts_df["color_id"].unique()
 
         # Filter parts and colors DataFrames
-        self.parts_df = self.parts_df[self.parts_df['part_num'].isin(relevant_part_nums)].copy()
-        self.colors_df = self.colors_df[self.colors_df['id'].isin(relevant_color_ids)].copy()
+        self.parts_df = self.parts_df[
+            self.parts_df["part_num"].isin(relevant_part_nums)
+        ].copy()
+        self.colors_df = self.colors_df[
+            self.colors_df["id"].isin(relevant_color_ids)
+        ].copy()
 
         print("Data filtering complete!")
-
 
     # --- Subsequent methods will be implemented here ---
     # def _create_database(self):
