@@ -15,7 +15,7 @@ Best Practices Followed:
 
 import pandas as pd
 from pathlib import Path
-from typing import List
+from typing import List, Optional
 
 
 class DataImporter:
@@ -31,11 +31,11 @@ class DataImporter:
         self.raw_data_path = Path(raw_data_path)
         self.target_set_nums: List[str] = []
 
-        self.sets_df: pd.DataFrame = None
-        self.parts_df: pd.DataFrame = None
-        self.colors_df: pd.DataFrame = None
-        self.inventories_df: pd.DataFrame = None
-        self.inventory_parts_df: pd.DataFrame = None
+        self.sets_df: Optional[pd.DataFrame] = None
+        self.parts_df: Optional[pd.DataFrame] = None
+        self.colors_df: Optional[pd.DataFrame] = None
+        self.inventories_df: Optional[pd.DataFrame] = None
+        self.inventory_parts_df: Optional[pd.DataFrame] = None
 
         self.required_files = [
             "sets.csv",
