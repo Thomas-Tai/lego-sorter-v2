@@ -40,8 +40,9 @@ def test_importer_with_real_rebrickable_data():
     # our core assumptions about the data structure and filtering outcome.
 
     # Assumption 1: Is the database file available
-    assert db_path.exists(), "Database file should be created after running with real data."
-
+    assert (
+        db_path.exists()
+    ), "Database file should be created after running with real data."
 
     # Assumption 2: Did we load the correct DataFrames?
     assert (

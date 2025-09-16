@@ -24,6 +24,7 @@ class DataImporter:
     A class responsible for processing Rebrickable data and building a local
     database.
     """
+
     def __init__(self, raw_data_path: str, db_path: str):
         """
         Initializes the DataImporter.
@@ -139,22 +140,26 @@ class DataImporter:
 
         # Ensure the parent directory exists
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
-        
+
         # Create a connection. This will create the file if it doesn't exist.
         conn = sqlite3.connect(self.db_path)
-        
+
         try:
             # Use pandas' .to_sql() to write DataFrames to tables.
             # `if_exists='replace'` will drop the table first if it exists.
             # `index=False` prevents pandas from writing the DataFrame index as a column.
-            self.inventory_parts_df.to_sql('inventory_parts', conn, if_exists='replace', index=False)
-            self.parts_df.to_sql('parts', conn, if_exists='replace', index=False)
-            self.colors_df.to_sql('colors', conn, if_exists='replace', index=False)
-            
+            self.inventory_parts_df.to_sql(
+                "inventory_parts", conn, if_exists="replace", index=False
+            )
+            self.parts_df.to_sql("parts", conn, if_exists="replace", index=False)
+            self.colors_df.to_sql("colors", conn, if_exists="replace", index=False)
+
             # We also save the filtered sets table for context
-            filtered_sets_df = self.sets_df[self.sets_df['set_num'].isin(self.target_set_nums)].copy()
-            filtered_sets_df.to_sql('sets', conn, if_exists='replace', index=False)
-            
+            filtered_sets_df = self.sets_df[
+                self.sets_df["set_num"].isin(self.target_set_nums)
+            ].copy()
+            filtered_sets_df.to_sql("sets", conn, if_exists="replace", index=False)
+
             print("Database and tables created successfully.")
 
         finally:
