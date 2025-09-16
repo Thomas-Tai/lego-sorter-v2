@@ -20,7 +20,9 @@ def test_importer_with_real_rebrickable_data():
     if not real_data_path.exists():
         pytest.skip("Skipping integration test: Real data directory not found.")
 
-    importer = DataImporter(raw_data_path=str(real_data_path))
+    db_path = real_data_path.parent / "integration_test_output.sqlite"
+
+    importer = DataImporter(raw_data_path=str(real_data_path), db_path=str(db_path))
     importer.target_set_nums = ["45345-1"]  # Spike Essential
 
     # --- 2. Act ---
@@ -29,6 +31,7 @@ def test_importer_with_real_rebrickable_data():
     try:
         importer._load_csv_files()
         importer._filter_data()
+        importer._create_database()
     except Exception as e:
         pytest.fail(f"DataImporter failed to process real data. Error: {e}")
 
@@ -36,24 +39,29 @@ def test_importer_with_real_rebrickable_data():
     # We don't need to check the exact number of parts, but we can verify
     # our core assumptions about the data structure and filtering outcome.
 
-    # Assumption 1: Did we load the correct DataFrames?
+    # Assumption 1: Is the database file available
+    assert (
+        db_path.exists()
+    ), "Database file should be created after running with real data."
+
+    # Assumption 2: Did we load the correct DataFrames?
     assert (
         importer.inventory_parts_df is not None
     ), "inventory_parts_df should be loaded."
 
-    # Assumption 2: Does the loaded DataFrame contain the columns we need?
+    # Assumption 3: Does the loaded DataFrame contain the columns we need?
     required_cols = ["inventory_id", "part_num", "color_id", "quantity"]
     assert all(
         col in importer.inventory_parts_df.columns for col in required_cols
     ), f"Real inventory_parts.csv is missing required columns. Found: {importer.inventory_parts_df.columns.tolist()}"
 
-    # Assumption 3: After filtering, did we get a plausible number of parts?
+    # Assumption 4: After filtering, did we get a plausible number of parts?
     # We know Spike Essential has parts, so the result should not be empty.
     assert (
         not importer.inventory_parts_df.empty
     ), "Filtered inventory should not be empty for Spike Essential."
 
-    # Assumption 4: Does the filtered data truly only contain our target inventory?
+    # Assumption 5: Does the filtered data truly only contain our target inventory?
     # This is the most crucial test of our filtering logic.
     target_inventory_id = 109216  # We can find this ID by inspecting the real CSVs
     assert importer.inventory_parts_df["inventory_id"].unique().tolist() == [
