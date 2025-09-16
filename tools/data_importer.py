@@ -16,6 +16,7 @@ Best Practices Followed:
 import pandas as pd
 from pathlib import Path
 from typing import List, Optional
+import sqlite3
 
 
 class DataImporter:
@@ -24,11 +25,17 @@ class DataImporter:
     database.
     """
 
-    def __init__(self, raw_data_path: str):
+    def __init__(self, raw_data_path: str, db_path: str):
         """
         Initializes the DataImporter.
+
+        Args:
+            raw_data_path (str): The path to the directory containing the raw
+                                 Rebrickable CSV files.
+            db_path (str): The path where the output SQLite database will be saved.
         """
         self.raw_data_path = Path(raw_data_path)
+        self.db_path = Path(db_path)
         self.target_set_nums: List[str] = []
 
         self.sets_df: Optional[pd.DataFrame] = None
@@ -124,11 +131,46 @@ class DataImporter:
 
         print("Data filtering complete!")
 
-    # --- Subsequent methods will be implemented here ---
-    # def _create_database(self):
-    #     pass
-    #
-    # def run(self):
-    #     self._load_csv_files()
-    #     self._filter_data()
-    #     self._create_database()
+    def _create_database(self):
+        """
+        Writes the filtered DataFrames into a new, clean SQLite database file.
+        If the file already exists, it will be overwritten.
+        """
+        print(f"Creating database at {self.db_path}...")
+
+        # Ensure the parent directory exists
+        self.db_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Create a connection. This will create the file if it doesn't exist.
+        conn = sqlite3.connect(self.db_path)
+
+        try:
+            # Use pandas' .to_sql() to write DataFrames to tables.
+            # `if_exists='replace'` will drop the table first if it exists.
+            # `index=False` prevents pandas from writing the DataFrame index as a column.
+            self.inventory_parts_df.to_sql(
+                "inventory_parts", conn, if_exists="replace", index=False
+            )
+            self.parts_df.to_sql("parts", conn, if_exists="replace", index=False)
+            self.colors_df.to_sql("colors", conn, if_exists="replace", index=False)
+
+            # We also save the filtered sets table for context
+            filtered_sets_df = self.sets_df[
+                self.sets_df["set_num"].isin(self.target_set_nums)
+            ].copy()
+            filtered_sets_df.to_sql("sets", conn, if_exists="replace", index=False)
+
+            print("Database and tables created successfully.")
+
+        finally:
+            # Ensure the connection is always closed.
+            conn.close()
+
+    def run(self):
+        """
+        Executes the full data import pipeline from loading CSVs to creating
+        the final SQLite database.
+        """
+        self._load_csv_files()
+        self._filter_data()
+        self._create_database()
