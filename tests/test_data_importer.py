@@ -19,19 +19,31 @@ def configured_importer(tmp_path):
     """
     raw_data_path = tmp_path / "raw"
     raw_data_path.mkdir()
-    
+
     # THE FIX: Define a dummy database path for our tests
     db_path = tmp_path / "test_lego_parts.sqlite"
 
     # Create mock CSVs...
-    (raw_data_path / "sets.csv").write_text("set_num,name\n45345-1,Spike Essential\n99999-1,Other Set", encoding='utf-8')
-    (raw_data_path / "inventories.csv").write_text("id,version,set_num\n123,1,45345-1\n456,1,99999-1", encoding='utf-8')
-    (raw_data_path / "inventory_parts.csv").write_text("inventory_id,part_num,color_id,quantity\n123,3001,4,10\n123,3002,0,5\n456,9999,1,1", encoding='utf-8')
-    (raw_data_path / "parts.csv").write_text("part_num,name\n3001,Brick 2x4\n3002,Plate 1x1\n9999,Alien Head", encoding='utf-8')
-    (raw_data_path / "colors.csv").write_text("id,name\n4,Red\n0,Black\n1,Blue", encoding='utf-8')
+    (raw_data_path / "sets.csv").write_text(
+        "set_num,name\n45345-1,Spike Essential\n99999-1,Other Set", encoding="utf-8"
+    )
+    (raw_data_path / "inventories.csv").write_text(
+        "id,version,set_num\n123,1,45345-1\n456,1,99999-1", encoding="utf-8"
+    )
+    (raw_data_path / "inventory_parts.csv").write_text(
+        "inventory_id,part_num,color_id,quantity\n123,3001,4,10\n123,3002,0,5\n456,9999,1,1",
+        encoding="utf-8",
+    )
+    (raw_data_path / "parts.csv").write_text(
+        "part_num,name\n3001,Brick 2x4\n3002,Plate 1x1\n9999,Alien Head",
+        encoding="utf-8",
+    )
+    (raw_data_path / "colors.csv").write_text(
+        "id,name\n4,Red\n0,Black\n1,Blue", encoding="utf-8"
+    )
 
     importer = DataImporter(raw_data_path=str(raw_data_path), db_path=str(db_path))
-    importer.target_set_nums = ['45345-1']
+    importer.target_set_nums = ["45345-1"]
     importer._load_csv_files()
     importer._filter_data()
     return importer
@@ -52,9 +64,15 @@ def test_load_csv_files_success(configured_importer):
     assert not importer.parts_df.empty
     assert isinstance(importer.colors_df, pd.DataFrame) and not importer.colors_df.empty
     assert not importer.colors_df.empty
-    assert isinstance(importer.inventories_df, pd.DataFrame) and not importer.inventories_df.empty
+    assert (
+        isinstance(importer.inventories_df, pd.DataFrame)
+        and not importer.inventories_df.empty
+    )
     assert not importer.inventories_df.empty
-    assert isinstance(importer.inventory_parts_df, pd.DataFrame) and not importer.inventory_parts_df.empty
+    assert (
+        isinstance(importer.inventory_parts_df, pd.DataFrame)
+        and not importer.inventory_parts_df.empty
+    )
     assert not importer.inventory_parts_df.empty
 
 
@@ -67,7 +85,7 @@ def test_load_csv_files_file_not_found(tmp_path):
     raw_data_path.mkdir()
     # THE FIX: Define a dummy database path
     db_path = tmp_path / "dummy.sqlite"
-    
+
     # THE FIX: Pass the new 'db_path' argument
     importer = DataImporter(raw_data_path=str(raw_data_path), db_path=str(db_path))
 
@@ -104,7 +122,9 @@ def test_filter_data_isolates_target_set_parts(configured_importer):
     assert len(importer.parts_df) == 2
     assert "9999" not in importer.parts_df["part_num"].values
 
+
 # --- NEW TEST CASE for the database creation feature ---
+
 
 def test_create_database_writes_filtered_data_to_sqlite(configured_importer):
     """
