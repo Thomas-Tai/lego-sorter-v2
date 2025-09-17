@@ -17,6 +17,7 @@ venv/
 data/images/
 data/processed/*.sqlite
 data/temp_real_data/
+data/raw
 
 # OS-specific
 .DS_Store
