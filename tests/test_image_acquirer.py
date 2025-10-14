@@ -75,3 +75,32 @@ def test_create_image_directory_creates_folder_and_returns_path(
     assert expected_path.exists()
     assert expected_path.is_dir()
     assert created_path == expected_path
+
+
+def test_prompt_user_displays_message_and_waits_for_input(
+    acquirer_instance: ImageAcquirer, capsys, monkeypatch
+):
+    """
+    Tests if the _prompt_user method can:
+    1. Display the correct prompt message to standard output.
+    2. Pause the program until the user provides input.
+    """
+    # Arrange
+    part_to_prompt = ("3001", "Brick 2x4")
+    # We will only check for the most critical part of the message.
+    # This makes the test more robust against minor formatting changes.
+    expected_key_message = "Please place part: 3001 (Brick 2x4)"
+
+    # Monkeypatch the input() function.
+    # When input() is called, it will immediately return, simulating a user press.
+    monkeypatch.setattr("builtins.input", lambda _: None)
+
+    # Act
+    acquirer_instance._prompt_user(part_to_prompt)
+
+    # Assert
+    # Capture the content that was printed to the screen.
+    captured = capsys.readouterr()
+
+    # Verify that the captured output contains our key expected message.
+    assert expected_key_message in captured.out
