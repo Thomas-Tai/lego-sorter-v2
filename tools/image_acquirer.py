@@ -57,3 +57,27 @@ class ImageAcquirer:
         part_dir = self.output_path / part_num
         part_dir.mkdir(parents=True, exist_ok=True)
         return part_dir
+
+    # (In tools/image_acquirer.py)
+
+    def _prompt_user(self, part_info: Tuple[str, str]) -> None:
+        """Displays a prompt in the command line and waits for user confirmation.
+
+        This method prints a formatted prompt to standard output, informing the
+        operator of the next part number and name to be placed. The program
+        will then block until the operator presses the Enter key.
+
+        Args:
+            part_info (Tuple[str, str]): A tuple containing (part_num, part_name).
+        """
+        part_num, part_name = part_info
+        prompt_message = (
+            "\n==================================================\n"
+            f"  Please place part: {part_num} ({part_name})\n"
+            "=================================================="
+        )
+        # Step 1: Explicitly PRINT the message to standard output.
+        print(prompt_message)
+
+        # Step 2: Use input() SOLELY for pausing execution.
+        input("  Press ENTER to continue...")
