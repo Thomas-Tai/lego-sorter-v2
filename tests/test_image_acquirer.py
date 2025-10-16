@@ -2,6 +2,7 @@ import pytest
 import sqlite3
 from pathlib import Path
 from tools.image_acquirer import ImageAcquirer
+from tests.mocks.mock_hardware_service import MockHardwareService
 
 
 @pytest.fixture
@@ -34,9 +35,21 @@ def test_db(tmp_path: Path) -> Path:
 
 
 @pytest.fixture
-def acquirer_instance(test_db: Path, tmp_path: Path) -> ImageAcquirer:
-    """A fixture that provides a ready-to-use ImageAcquirer instance."""
-    return ImageAcquirer(db_path=str(test_db), output_path=str(tmp_path))
+def mock_hardware() -> MockHardwareService:
+    """A fixture that provides a clean MockHardwareService instance."""
+    return MockHardwareService()
+
+
+@pytest.fixture
+def acquirer_instance(
+    test_db: Path, tmp_path: Path, mock_hardware: MockHardwareService
+) -> ImageAcquirer:
+    """A fixture that provides an ImageAcquirer instance with a mocked hardware service injected."""
+    return ImageAcquirer(
+        db_path=str(test_db),
+        output_path=str(tmp_path),
+        hardware_service=mock_hardware,  # Pass the practice knife to the chef.
+    )
 
 
 def test_get_parts_to_shoot_returns_only_unshot_parts(acquirer_instance: ImageAcquirer):
@@ -104,3 +117,31 @@ def test_prompt_user_displays_message_and_waits_for_input(
 
     # Verify that the captured output contains our key expected message.
     assert expected_key_message in captured.out
+
+
+def test_capture_single_part_routine_happy_path(
+    acquirer_instance: ImageAcquirer, mock_hardware: MockHardwareService
+):
+    """
+    Tests the core workflow of _capture_single_part_routine (happy path).
+
+    Verifies that this method correctly orchestrates the hardware service
+    to complete the following steps:
+    1. Turn on the light.
+    2. Loop 6 times, turning 60 degrees each time.
+    3. Turn off the light.
+    4. Perform cleanup at the end.
+    """
+    # Arrange
+    # We assume the camera successfully "takes a picture" after each turn.
+    # For now, we will not simulate the camera and will focus only on hardware orchestration.
+
+    # Act
+    acquirer_instance._capture_single_part_routine()
+
+    # Assert - Check the "flight log"
+    # Check the core metrics the "examiner" cares about.
+    assert mock_hardware.setup_called is True
+    assert mock_hardware.led_is_on is False  # The light is off at the end.
+    assert mock_hardware.turntable_turned_by == 360  # Turned a total of 360 degrees.
+    assert mock_hardware.cleanup_called is True
