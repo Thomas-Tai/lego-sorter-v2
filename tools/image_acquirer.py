@@ -1,6 +1,7 @@
 import sqlite3
 from typing import List, Tuple
 from pathlib import Path  # Import the Path object from pathlib
+from sorter_app.services.base_service import AbstractHardwareService
 
 
 class ImageAcquirer:
@@ -11,9 +12,23 @@ class ImageAcquirer:
         output_path (str): The root directory path for storing acquired images.
     """
 
-    def __init__(self, db_path: str, output_path: str):
+    def __init__(
+        self,
+        db_path: str,
+        output_path: str,
+        hardware_service: AbstractHardwareService,  # <-- ADD THIS ARGUMENT
+    ):
+        """Initializes the ImageAcquirer.
+
+        Args:
+            db_path: Path to the SQLite database.
+            output_path: Root directory to save captured images.
+            hardware_service: An object that conforms to the AbstractHardwareService interface.
+        """
         self.db_path = db_path
-        self.output_path = Path(output_path)  # Convert the string to a Path object
+        self.output_path = Path(output_path)
+        self.hardware = hardware_service
+
         self.output_path.mkdir(
             parents=True, exist_ok=True
         )  # Ensure the base output directory exists
@@ -81,3 +96,30 @@ class ImageAcquirer:
 
         # Step 2: Use input() SOLELY for pausing execution.
         input("  Press ENTER to continue...")
+
+    def _capture_single_part_routine(self) -> None:
+        """Executes the complete multi-angle image acquisition routine for a single part.
+
+        This method orchestrates the hardware service to perform a standardized
+        capture sequence:
+        Initialize Hardware -> Turn LEDs On -> Loop[Capture -> Rotate] -> Turn LEDs Off -> Cleanup Hardware.
+
+        Note: This method relies on the injected hardware_service.
+        """
+
+        # Follow the contract defined in our tests.
+        self.hardware.setup()
+        self.hardware.set_led_power(True)
+
+        # Assuming we define 6 steps of 60 degrees each to capture 6 photos.
+        num_steps = 6
+        degrees_per_step = 360 // num_steps
+
+        for i in range(num_steps):
+            print(f"  Capturing angle {i+1}/{num_steps}...")
+            # TODO: Call vision service to capture image here
+
+            self.hardware.turn_turntable(degrees_per_step)
+
+        self.hardware.set_led_power(False)
+        self.hardware.cleanup()
