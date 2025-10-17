@@ -5,6 +5,10 @@ Execution script for the DataImporter tool.
 This script initializes and runs the data import pipeline, which loads
 raw data from Rebrickable, filters it for the target sets, and creates
 a normalized SQLite database.
+
+venv\Scripts\activate
+pip install -r requirements.txt
+python run_importer.py
 """
 
 from tools.data_importer import DataImporter

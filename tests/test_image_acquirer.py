@@ -145,3 +145,42 @@ def test_capture_single_part_routine_happy_path(
     assert mock_hardware.led_is_on is False  # The light is off at the end.
     assert mock_hardware.turntable_turned_by == 360  # Turned a total of 360 degrees.
     assert mock_hardware.cleanup_called is True
+
+
+def test_update_database_sets_image_folder_name(
+    acquirer_instance: ImageAcquirer, test_db: Path
+):
+    """
+    Tests if the _update_database method correctly updates the
+    'image_folder_name' field for a specified part.
+    """
+    # Arrange
+    part_num_to_update = "3002"  # Select a part we know is initially unshot
+    new_folder_name = "path/to/3002_images"
+
+    # Verify precondition: Confirm the part's image_folder_name is initially NULL
+    conn = sqlite3.connect(test_db)
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT image_folder_name FROM parts WHERE part_num = ?",
+        (part_num_to_update,),
+    )
+    initial_value = cursor.fetchone()[0]
+    conn.close()
+    assert initial_value is None
+
+    # Act
+    acquirer_instance._update_database(part_num_to_update, new_folder_name)
+
+    # Assert
+    # Reconnect to the database to check if the data has been permanently changed
+    conn = sqlite3.connect(test_db)
+    cursor = conn.cursor()
+    cursor.execute(
+        "SELECT image_folder_name FROM parts WHERE part_num = ?",
+        (part_num_to_update,),
+    )
+    updated_value = cursor.fetchone()[0]
+    conn.close()
+
+    assert updated_value == new_folder_name

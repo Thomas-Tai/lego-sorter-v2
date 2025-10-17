@@ -151,6 +151,15 @@ class DataImporter:
             self.inventory_parts_df.to_sql(
                 "inventory_parts", conn, if_exists="replace", index=False
             )
+
+            # --- SCHEMA EVOLUTION: Add the image_folder_name column ---
+            # We add the new column to the DataFrame before writing it to SQL.
+            # Pandas will automatically create this column in the SQL table.
+            # A value of None in pandas becomes a NULL value in SQL.
+            print("Adding 'image_folder_name' column to 'parts' table schema...")
+            self.parts_df["image_folder_name"] = None
+            # -----------------------------------------------------------
+
             self.parts_df.to_sql("parts", conn, if_exists="replace", index=False)
             self.colors_df.to_sql("colors", conn, if_exists="replace", index=False)
 
