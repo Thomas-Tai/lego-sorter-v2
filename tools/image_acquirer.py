@@ -123,3 +123,27 @@ class ImageAcquirer:
 
         self.hardware.set_led_power(False)
         self.hardware.cleanup()
+
+    def _update_database(self, part_num: str, folder_name: str) -> None:
+        """Updates the image folder name for the specified part in the database.
+
+        This method performs an UPDATE operation on the 'parts' table,
+        setting the value of the 'image_folder_name' column for the record
+        that matches the given 'part_num'. This operation is permanent.
+
+        Args:
+            part_num (str): The part number of the record to update.
+            folder_name (str): The folder name to write into the column.
+        """
+        conn = sqlite3.connect(self.db_path)
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            UPDATE parts
+            SET image_folder_name = ?
+            WHERE part_num = ?
+            """,
+            (folder_name, part_num),
+        )
+        conn.commit()
+        conn.close()
