@@ -22,3 +22,5 @@ data/raw
 # OS-specific
 .DS_Store
 Thumbs.db
+# Agent workflow configs
+.agent/
