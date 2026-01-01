@@ -5,7 +5,10 @@ import sqlite3
 from pathlib import Path
 from typing import List, Optional, Tuple
 
-from sorter_app.services.base_service import AbstractHardwareService, AbstractVisionService
+from sorter_app.services.base_service import (
+    AbstractHardwareService,
+    AbstractVisionService,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -253,4 +256,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-

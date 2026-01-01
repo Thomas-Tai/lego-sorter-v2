@@ -25,9 +25,7 @@ class TestRaspberryPiVisionService(unittest.TestCase):
         self.assertIsNotNone(service)
 
     @patch("sorter_app.services.vision_service.cv2.VideoCapture")
-    def test_init_raises_on_camera_failure(
-        self, mock_capture_class: MagicMock
-    ) -> None:
+    def test_init_raises_on_camera_failure(self, mock_capture_class: MagicMock) -> None:
         """Test that __init__ raises CameraError if camera fails to open."""
         mock_cap = MagicMock()
         mock_cap.isOpened.return_value = False
@@ -59,9 +57,7 @@ class TestRaspberryPiVisionService(unittest.TestCase):
         mock_imwrite.assert_called_once()
 
     @patch("sorter_app.services.vision_service.cv2.VideoCapture")
-    def test_capture_image_read_failure(
-        self, mock_capture_class: MagicMock
-    ) -> None:
+    def test_capture_image_read_failure(self, mock_capture_class: MagicMock) -> None:
         """Test that capture_image returns False when read fails."""
         mock_cap = MagicMock()
         mock_cap.isOpened.return_value = True

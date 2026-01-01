@@ -63,7 +63,6 @@ def acquirer_instance(
     )
 
 
-
 def test_get_parts_to_shoot_returns_only_unshot_parts(acquirer_instance: ImageAcquirer):
     """
     Tests if the _get_parts_to_shoot method only returns parts where

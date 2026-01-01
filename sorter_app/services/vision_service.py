@@ -53,7 +53,7 @@ class RaspberryPiVisionService(AbstractVisionService):
         buffer_flush_count = 5
         for _ in range(buffer_flush_count):
             self._cap.grab()  # Grab without decoding for speed
-        
+
         # Now capture the actual frame
         ret, frame = self._cap.read()
         if not ret:

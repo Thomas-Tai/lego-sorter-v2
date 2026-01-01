@@ -75,4 +75,3 @@ class AbstractVisionService(ABC):
         to free up the camera device for other processes.
         """
         pass
-
