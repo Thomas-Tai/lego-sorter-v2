@@ -1,37 +1,49 @@
+"""A tool for automatically acquiring images of Lego parts."""
+
+import logging
 import sqlite3
-from typing import List, Tuple
-from pathlib import Path  # Import the Path object from pathlib
-from sorter_app.services.base_service import AbstractHardwareService
+from pathlib import Path
+from typing import List, Optional, Tuple
+
+from sorter_app.services.base_service import AbstractHardwareService, AbstractVisionService
+
+logger = logging.getLogger(__name__)
 
 
 class ImageAcquirer:
     """A tool for automatically acquiring images of Lego parts.
 
-    Args:
-        db_path (str): The path to the Lego parts SQLite database.
-        output_path (str): The root directory path for storing acquired images.
+    This tool orchestrates the hardware (turntable, LEDs) and vision (camera)
+    services to capture multi-angle images of LEGO parts for training data.
+
+    Attributes:
+        db_path: Path to the Lego parts SQLite database.
+        output_path: Root directory path for storing acquired images.
     """
 
     def __init__(
         self,
         db_path: str,
         output_path: str,
-        hardware_service: AbstractHardwareService,  # <-- ADD THIS ARGUMENT
-    ):
+        hardware_service: AbstractHardwareService,
+        vision_service: AbstractVisionService,
+    ) -> None:
         """Initializes the ImageAcquirer.
 
         Args:
             db_path: Path to the SQLite database.
             output_path: Root directory to save captured images.
-            hardware_service: An object that conforms to the AbstractHardwareService interface.
+            hardware_service: An object that conforms to AbstractHardwareService.
+            vision_service: An object that conforms to AbstractVisionService.
         """
-        self.db_path = db_path
-        self.output_path = Path(output_path)
-        self.hardware = hardware_service
+        self._db_path = db_path
+        self._output_path = Path(output_path)
+        self._hardware = hardware_service
+        self._vision = vision_service
+        self._current_part_dir: Optional[Path] = None
 
-        self.output_path.mkdir(
-            parents=True, exist_ok=True
-        )  # Ensure the base output directory exists
+        self._output_path.mkdir(parents=True, exist_ok=True)
+        logger.info("ImageAcquirer initialized. Output path: %s", self._output_path)
 
     def _get_parts_to_shoot(self) -> List[Tuple[str, str]]:
         """Queries the database for all parts that have not yet had their images taken.
@@ -40,10 +52,9 @@ class ImageAcquirer:
         'image_folder_name' column is NULL.
 
         Returns:
-            List[Tuple[str, str]]: A list of tuples, where each tuple contains
-                                  (part_num, name).
+            A list of tuples, where each tuple contains (part_num, name).
         """
-        conn = sqlite3.connect(self.db_path)
+        conn = sqlite3.connect(self._db_path)
         cursor = conn.cursor()
         cursor.execute(
             """
@@ -53,27 +64,27 @@ class ImageAcquirer:
         )
         parts = cursor.fetchall()
         conn.close()
+        logger.info("Found %d parts to shoot", len(parts))
         return parts
 
     def _create_image_directory(self, part_num: str) -> Path:
         """Creates a dedicated image storage directory based on the part number.
 
         This method creates a subdirectory named after the part_num under
-        self.output_path. If parent directories do not exist, they will be
+        self._output_path. If parent directories do not exist, they will be
         created. If the target directory already exists, it will not raise
         an error.
 
         Args:
-            part_num (str): The part number for which to create the directory.
+            part_num: The part number for which to create the directory.
 
         Returns:
-            Path: A Path object pointing to the created or existing directory.
+            A Path object pointing to the created or existing directory.
         """
-        part_dir = self.output_path / part_num
+        part_dir = self._output_path / part_num
         part_dir.mkdir(parents=True, exist_ok=True)
+        logger.debug("Created image directory: %s", part_dir)
         return part_dir
-
-    # (In tools/image_acquirer.py)
 
     def _prompt_user(self, part_info: Tuple[str, str]) -> None:
         """Displays a prompt in the command line and waits for user confirmation.
@@ -83,7 +94,7 @@ class ImageAcquirer:
         will then block until the operator presses the Enter key.
 
         Args:
-            part_info (Tuple[str, str]): A tuple containing (part_num, part_name).
+            part_info: A tuple containing (part_num, part_name).
         """
         part_num, part_name = part_info
         prompt_message = (
@@ -91,38 +102,42 @@ class ImageAcquirer:
             f"  Please place part: {part_num} ({part_name})\n"
             "=================================================="
         )
-        # Step 1: Explicitly PRINT the message to standard output.
         print(prompt_message)
-
-        # Step 2: Use input() SOLELY for pausing execution.
         input("  Press ENTER to continue...")
 
     def _capture_single_part_routine(self) -> None:
         """Executes the complete multi-angle image acquisition routine for a single part.
 
-        This method orchestrates the hardware service to perform a standardized
-        capture sequence:
-        Initialize Hardware -> Turn LEDs On -> Loop[Capture -> Rotate] -> Turn LEDs Off -> Cleanup Hardware.
+        This method orchestrates the hardware and vision services to perform a
+        standardized capture sequence:
+        Initialize Hardware -> Turn LEDs On -> Loop[Capture -> Rotate] ->
+        Turn LEDs Off -> Cleanup Hardware.
 
-        Note: This method relies on the injected hardware_service.
+        Requires self._current_part_dir to be set before calling.
         """
+        if self._current_part_dir is None:
+            logger.error("_current_part_dir is not set. Cannot capture.")
+            return
 
-        # Follow the contract defined in our tests.
-        self.hardware.setup()
-        self.hardware.set_led_power(True)
+        self._hardware.setup()
+        self._hardware.set_led_power(True)
 
-        # Assuming we define 6 steps of 60 degrees each to capture 6 photos.
+        # Capture 6 angles at 60 degree intervals
         num_steps = 6
         degrees_per_step = 360 // num_steps
 
         for i in range(num_steps):
-            print(f"  Capturing angle {i+1}/{num_steps}...")
-            # TODO: Call vision service to capture image here
+            filename = self._current_part_dir / f"angle_{i + 1:02d}.jpg"
+            logger.info("Capturing angle %d/%d -> %s", i + 1, num_steps, filename.name)
 
-            self.hardware.turn_turntable(degrees_per_step)
+            if not self._vision.capture_image(str(filename)):
+                logger.warning("Failed to capture image at angle %d", i + 1)
 
-        self.hardware.set_led_power(False)
-        self.hardware.cleanup()
+            self._hardware.turn_turntable(degrees_per_step)
+
+        self._hardware.set_led_power(False)
+        self._hardware.cleanup()
+        logger.info("Capture routine complete for %s", self._current_part_dir.name)
 
     def _update_database(self, part_num: str, folder_name: str) -> None:
         """Updates the image folder name for the specified part in the database.
@@ -132,10 +147,10 @@ class ImageAcquirer:
         that matches the given 'part_num'. This operation is permanent.
 
         Args:
-            part_num (str): The part number of the record to update.
-            folder_name (str): The folder name to write into the column.
+            part_num: The part number of the record to update.
+            folder_name: The folder name to write into the column.
         """
-        conn = sqlite3.connect(self.db_path)
+        conn = sqlite3.connect(self._db_path)
         cursor = conn.cursor()
         cursor.execute(
             """
@@ -147,3 +162,95 @@ class ImageAcquirer:
         )
         conn.commit()
         conn.close()
+        logger.debug("Database updated: %s -> %s", part_num, folder_name)
+
+    def run(self) -> None:
+        """Runs the full image acquisition workflow.
+
+        Iterates through all parts that need images, prompts the user to place
+        each part, captures multi-angle images, and updates the database.
+        """
+        parts = self._get_parts_to_shoot()
+
+        if not parts:
+            logger.info("No parts to shoot. All parts have images.")
+            return
+
+        logger.info("Starting acquisition for %d parts", len(parts))
+
+        for part_info in parts:
+            part_num, _ = part_info
+
+            # Prompt user to place the part
+            self._prompt_user(part_info)
+
+            # Create directory for this part's images
+            self._current_part_dir = self._create_image_directory(part_num)
+
+            # Run capture routine
+            self._capture_single_part_routine()
+
+            # Update database to mark as complete
+            self._update_database(part_num, part_num)
+
+        # Release camera when done
+        self._vision.release()
+        logger.info("Acquisition complete for all parts")
+
+
+def main() -> None:
+    """Main entry point for the image acquirer tool."""
+    import logging
+    import sys
+    from pathlib import Path
+
+    # Configure logging
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        handlers=[logging.StreamHandler(sys.stdout)],
+    )
+
+    # Determine paths
+    project_root = Path(__file__).parent.parent
+    db_path = project_root / "data" / "processed" / "lego_parts.sqlite"
+    output_path = project_root / "data" / "images"
+
+    # Check if database exists
+    if not db_path.exists():
+        logger.error("Database not found at %s", db_path)
+        logger.error("Please run the data importer first: python run_importer.py")
+        sys.exit(1)
+
+    # Import and create services
+    from sorter_app.services.hardware_service import RaspberryPiHardwareService
+    from sorter_app.services.vision_service import RaspberryPiVisionService
+
+    logger.info("Initializing services...")
+
+    try:
+        hardware_service = RaspberryPiHardwareService()
+        vision_service = RaspberryPiVisionService(camera_index=0)
+    except Exception as e:
+        logger.error("Failed to initialize services: %s", e)
+        sys.exit(1)
+
+    # Create and run the acquirer
+    acquirer = ImageAcquirer(
+        db_path=str(db_path),
+        output_path=str(output_path),
+        hardware_service=hardware_service,
+        vision_service=vision_service,
+    )
+
+    try:
+        acquirer.run()
+    except KeyboardInterrupt:
+        logger.info("Acquisition interrupted by user")
+    finally:
+        vision_service.release()
+
+
+if __name__ == "__main__":
+    main()
+

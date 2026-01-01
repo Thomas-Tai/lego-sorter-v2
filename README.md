@@ -20,6 +20,11 @@ To deliver a commercial-grade, open-source Lego sorting machine that not only so
 - Python 3.11+
 - Git
 
+### Hardware Setup
+For instructions on setting up the Raspberry Pi connection (SSH), please refer to the [SSH Setup Guide](docs/ssh_setup.md).
+
+For camera setup and image acquisition, see the [Photo Capture Guide](docs/photo_capture_guide.md).
+
 ### 1. Installation
 
 1. Clone the repository:

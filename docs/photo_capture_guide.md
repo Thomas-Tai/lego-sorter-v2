@@ -1,0 +1,340 @@
+# Photo Capture Implementation Guide
+
+This guide explains how to set up the Raspberry Pi environment and USB camera for the LEGO Sorter image acquisition system.
+
+## Table of Contents
+- [Overview](#overview)
+- [Architecture](#architecture)
+- [Raspberry Pi Setup](#raspberry-pi-setup)
+- [Camera Setup](#camera-setup)
+- [Deployment](#deployment)
+- [Running the Image Acquirer](#running-the-image-acquirer)
+- [Troubleshooting](#troubleshooting)
+
+---
+
+## Overview
+
+The photo capture system is designed to automatically capture multi-angle images of LEGO parts for training the classification model. It uses:
+
+- **USB Camera**: Standard USB webcam connected to the Raspberry Pi
+- **Turntable**: Motorized platform to rotate parts for multi-angle capture
+- **LED Lighting**: Controlled lighting for consistent image quality
+
+The system captures **6 images per part** at 60-degree intervals, providing comprehensive coverage for model training.
+
+---
+
+## Architecture
+
+The implementation follows a clean architecture with dependency injection:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                      ImageAcquirer                          │
+│  (Orchestrates the capture workflow)                        │
+├─────────────────────────────────────────────────────────────┤
+│                           │                                 │
+│         ┌─────────────────┼─────────────────┐               │
+│         ▼                 ▼                 ▼               │
+│  ┌─────────────┐   ┌─────────────┐   ┌─────────────┐        │
+│  │  Hardware   │   │   Vision    │   │  Database   │        │
+│  │  Service    │   │   Service   │   │  (SQLite)   │        │
+│  └─────────────┘   └─────────────┘   └─────────────┘        │
+│         │                 │                                 │
+│         ▼                 ▼                                 │
+│  ┌─────────────┐   ┌─────────────┐                          │
+│  │  GPIO Pins  │   │ USB Camera  │                          │
+│  │  (LEDs,     │   │ (OpenCV)    │                          │
+│  │   Motor)    │   │             │                          │
+│  └─────────────┘   └─────────────┘                          │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### Key Files
+
+| File | Purpose |
+|------|---------|
+| `run_acquirer.py` | Entry point to run the image acquisition |
+| `sorter_app/services/base_service.py` | Abstract interfaces for hardware and vision |
+| `sorter_app/services/vision_service.py` | OpenCV-based camera implementation |
+| `sorter_app/services/hardware_service.py` | GPIO control for LEDs and motor |
+| `sorter_app/exceptions.py` | Custom exception classes |
+| `tools/image_acquirer.py` | Main acquisition orchestrator |
+| `config/hardware.yaml` | Hardware configuration settings |
+
+---
+
+## Raspberry Pi Setup
+
+### Prerequisites
+
+- Raspberry Pi 4 (recommended) or Pi 3B+
+- Raspberry Pi OS (Bullseye or later)
+- USB Camera (any V4L2-compatible webcam)
+- Network connection (for initial setup)
+
+### Automated Setup
+
+1. **Deploy the code** from your Windows machine:
+   ```powershell
+   cd CodeBase\lego-sorter-v2
+   .\scripts\deploy.ps1
+   ```
+
+2. **SSH into the Pi**:
+   ```bash
+   ssh legoSorter
+   ```
+
+3. **Run the setup script** (first time only):
+   ```bash
+   bash ~/lego-sorter-v2/scripts/setup_pi.sh
+   ```
+
+4. **Log out and log back in** (required for camera permissions):
+   ```bash
+   exit
+   ssh legoSorter
+   ```
+
+### Manual Setup (Alternative)
+
+If you prefer to set up manually:
+
+```bash
+# Update system
+sudo apt-get update
+sudo apt-get install -y python3-pip python3-venv libopencv-dev
+
+# Add user to video group (for camera access)
+sudo usermod -aG video $USER
+
+# Create virtual environment
+python3 -m venv ~/lego-sorter-env
+source ~/lego-sorter-env/bin/activate
+
+# Install dependencies
+pip install --upgrade pip
+pip install -r ~/lego-sorter-v2/requirements.txt
+```
+
+---
+
+## Camera Setup
+
+### Supported Cameras
+
+Any USB camera compatible with Video4Linux2 (V4L2) should work:
+- Logitech C920/C922
+- Microsoft LifeCam
+- Generic USB webcams
+
+### Verifying Camera Connection
+
+1. **Check if camera is detected**:
+   ```bash
+   ls /dev/video*
+   ```
+   You should see `/dev/video0` (or similar).
+
+2. **Test camera with Python**:
+   ```bash
+   source ~/lego-sorter-env/bin/activate
+   python -c "import cv2; cap = cv2.VideoCapture(0); print('Camera OK' if cap.isOpened() else 'FAIL'); cap.release()"
+   ```
+
+3. **Capture a test image**:
+   ```bash
+   python -c "
+   import cv2
+   cap = cv2.VideoCapture(0)
+   ret, frame = cap.read()
+   if ret:
+       cv2.imwrite('/tmp/test.jpg', frame)
+       print('Image saved to /tmp/test.jpg')
+   cap.release()
+   "
+   ```
+
+### Configuration
+
+Camera settings are defined in `config/hardware.yaml`:
+
+```yaml
+camera:
+  device_index: 0  # USB camera device index (/dev/video0)
+```
+
+If you have multiple cameras, change `device_index` to match your camera.
+
+---
+
+## Deployment
+
+### Initial Deployment
+
+From your Windows development machine:
+
+```powershell
+# Navigate to the project
+cd CodeBase\lego-sorter-v2
+
+# Deploy to Pi
+.\scripts\deploy.ps1
+```
+
+This script:
+1. Creates the project directory on the Pi
+2. Copies source code, config, and requirements
+3. Displays next steps
+
+### Updating Code
+
+Run the same deploy script to push updates:
+
+```powershell
+.\scripts\deploy.ps1
+```
+
+> **Note**: The script uses `scp` for file transfer. For large updates, consider using `rsync` for incremental syncing.
+
+---
+
+## Running the Image Acquirer
+
+### Basic Usage
+
+1. **Activate the virtual environment**:
+   ```bash
+   source ~/lego-sorter-env/bin/activate
+   ```
+
+2. **Navigate to the project**:
+   ```bash
+   cd ~/lego-sorter-v2
+   ```
+
+3. **Run the acquirer**:
+   ```bash
+   python run_acquirer.py
+   ```
+
+### Workflow
+
+The image acquirer will:
+
+1. Query the database for parts without images
+2. For each part:
+   - Display a prompt asking you to place the part
+   - Wait for you to press ENTER
+   - Turn on the LEDs
+   - Capture 6 images (rotating 60° between each)
+   - Turn off the LEDs
+   - Update the database
+
+### Output
+
+Images are saved in the structure:
+```
+data/images/
+├── 3001/
+│   ├── angle_01.jpg
+│   ├── angle_02.jpg
+│   ├── angle_03.jpg
+│   ├── angle_04.jpg
+│   ├── angle_05.jpg
+│   └── angle_06.jpg
+├── 3002/
+│   └── ...
+```
+
+---
+
+## Troubleshooting
+
+### Camera Not Found
+
+**Symptom**: `CameraError: Failed to open camera at index 0`
+
+**Solutions**:
+1. Check if camera is connected:
+   ```bash
+   ls /dev/video*
+   ```
+2. Verify user has video group permissions:
+   ```bash
+   groups
+   # Should include 'video'
+   ```
+3. If you just added the video group, log out and back in.
+
+### Permission Denied
+
+**Symptom**: Cannot access `/dev/video0`
+
+**Solution**:
+```bash
+sudo usermod -aG video $USER
+# Log out and back in
+```
+
+### Import Errors
+
+**Symptom**: `ModuleNotFoundError: No module named 'cv2'`
+
+**Solution**:
+```bash
+source ~/lego-sorter-env/bin/activate
+pip install opencv-python-headless
+```
+
+### Camera Returns Black Images
+
+**Symptom**: Images are saved but appear completely black
+
+**Solutions**:
+1. Some cameras need "warm-up" time. Try adding a delay before capture.
+2. Check if the lens cap is removed.
+3. Ensure adequate lighting.
+
+### SSH Connection Issues
+
+If you can't connect via `ssh legoSorter`, see the [SSH Setup Guide](ssh_setup.md).
+
+---
+
+## Development Notes
+
+### Testing Without Hardware
+
+The codebase includes mock services for testing without physical hardware:
+
+```python
+from tests.mocks.mock_hardware_service import MockHardwareService
+from tests.mocks.mock_vision_service import MockVisionService
+
+# Use in tests
+hardware = MockHardwareService()
+vision = MockVisionService()
+acquirer = ImageAcquirer(db_path, output_path, hardware, vision)
+```
+
+### Running Tests
+
+```bash
+# On Windows (development machine)
+.\venv\Scripts\python.exe -m pytest tests\ -v
+
+# On Raspberry Pi
+source ~/lego-sorter-env/bin/activate
+python -m pytest tests/ -v
+```
+
+---
+
+## Related Documentation
+
+- [SSH Setup Guide](ssh_setup.md) – Setting up SSH connection to the Pi
+- [Hardware Configuration](../config/hardware.yaml) – Camera and GPIO settings
+- [Main README](../README.md) – Project overview and getting started

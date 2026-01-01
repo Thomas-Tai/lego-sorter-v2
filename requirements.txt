@@ -1,6 +1,12 @@
 # Core application dependencies
-pandas
-opencv-python
-PyYAML
-pydantic
+pandas>=2.0.0
+PyYAML>=6.0
+pydantic>=2.0.0
+
+# Vision - use headless for Raspberry Pi (no GUI dependencies)
+opencv-python-headless>=4.5.0
+
+# Hardware (Pi only - will fail gracefully on non-Pi)
+# RPi.GPIO>=0.7.0  # Uncomment when running on Pi
+
 # TensorFlow Lite runtime will be added later for the Pi

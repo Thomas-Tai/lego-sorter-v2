@@ -3,6 +3,7 @@ import sqlite3
 from pathlib import Path
 from tools.image_acquirer import ImageAcquirer
 from tests.mocks.mock_hardware_service import MockHardwareService
+from tests.mocks.mock_vision_service import MockVisionService
 
 
 @pytest.fixture
@@ -41,15 +42,26 @@ def mock_hardware() -> MockHardwareService:
 
 
 @pytest.fixture
+def mock_vision() -> MockVisionService:
+    """A fixture that provides a clean MockVisionService instance."""
+    return MockVisionService()
+
+
+@pytest.fixture
 def acquirer_instance(
-    test_db: Path, tmp_path: Path, mock_hardware: MockHardwareService
+    test_db: Path,
+    tmp_path: Path,
+    mock_hardware: MockHardwareService,
+    mock_vision: MockVisionService,
 ) -> ImageAcquirer:
-    """A fixture that provides an ImageAcquirer instance with a mocked hardware service injected."""
+    """A fixture that provides an ImageAcquirer instance with mocked services."""
     return ImageAcquirer(
         db_path=str(test_db),
         output_path=str(tmp_path),
-        hardware_service=mock_hardware,  # Pass the practice knife to the chef.
+        hardware_service=mock_hardware,
+        vision_service=mock_vision,
     )
+
 
 
 def test_get_parts_to_shoot_returns_only_unshot_parts(acquirer_instance: ImageAcquirer):
@@ -120,7 +132,10 @@ def test_prompt_user_displays_message_and_waits_for_input(
 
 
 def test_capture_single_part_routine_happy_path(
-    acquirer_instance: ImageAcquirer, mock_hardware: MockHardwareService
+    acquirer_instance: ImageAcquirer,
+    mock_hardware: MockHardwareService,
+    mock_vision: MockVisionService,
+    tmp_path: Path,
 ):
     """
     Tests the core workflow of _capture_single_part_routine (happy path).
@@ -133,18 +148,22 @@ def test_capture_single_part_routine_happy_path(
     4. Perform cleanup at the end.
     """
     # Arrange
-    # We assume the camera successfully "takes a picture" after each turn.
-    # For now, we will not simulate the camera and will focus only on hardware orchestration.
+    # Set up the current part directory (required by the routine)
+    acquirer_instance._current_part_dir = tmp_path / "test_part"
+    acquirer_instance._current_part_dir.mkdir(parents=True, exist_ok=True)
 
     # Act
     acquirer_instance._capture_single_part_routine()
 
-    # Assert - Check the "flight log"
-    # Check the core metrics the "examiner" cares about.
+    # Assert - Check the hardware "flight log"
     assert mock_hardware.setup_called is True
     assert mock_hardware.led_is_on is False  # The light is off at the end.
     assert mock_hardware.turntable_turned_by == 360  # Turned a total of 360 degrees.
     assert mock_hardware.cleanup_called is True
+
+    # Assert - Check that vision service was called 6 times
+    assert mock_vision.capture_count == 6
+    assert len(mock_vision.captured_filepaths) == 6
 
 
 def test_update_database_sets_image_folder_name(

@@ -1,0 +1,17 @@
+# Hardware Configuration for Lego Sorter
+# Modify these values based on your hardware setup
+
+camera:
+  device_index: 0       # USB camera device index (/dev/video0)
+  buffer_flush_frames: 5  # Number of frames to discard before capture (fixes stale buffer)
+
+turntable:
+  steps_per_rotation: 6  # Number of capture positions per full rotation
+  degrees_per_step: 60   # Degrees to rotate between captures
+
+gpio:
+  led_pin: 17           # GPIO pin for LED control (BCM numbering)
+  motor_pins:           # L298N motor driver pins
+    in1: 23
+    in2: 24
+    enable: 25
