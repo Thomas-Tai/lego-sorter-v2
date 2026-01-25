@@ -14,8 +14,8 @@ $PiHost = "legoSorter"  # SSH alias from ~/.ssh/config
 $RemotePath = "~/lego-sorter-v2"
 
 # Directories to sync
-$SyncDirs = @("sorter_app", "tools", "config", "data", "scripts")
-$SyncFiles = @("requirements.txt", "run_importer.py", "run_acquirer.py", "pytest.ini")
+$SyncDirs = @("sorter_app", "tools", "config", "data", "scripts", "Project_Manage", "tests")
+$SyncFiles = @("requirements.txt", "run_importer.py", "run_acquirer.py", "pytest.ini", "lego_sorter.py")
 
 Write-Host "=== Deploying to Raspberry Pi ===" -ForegroundColor Cyan
 Write-Host ""

@@ -1,15 +1,7 @@
 import pytest
 from unittest.mock import MagicMock, patch
 import time
-
-# Mock gpiozero for Windows environment
-import sys
-
-sys.modules["gpiozero"] = MagicMock()
-from gpiozero import PWMLED
-
 from lego_sorter import LedDriver
-
 
 class TestLedDriver:
     @pytest.fixture
