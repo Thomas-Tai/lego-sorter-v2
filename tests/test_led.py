@@ -3,6 +3,7 @@ from unittest.mock import MagicMock, patch
 import time
 from lego_sorter import LedDriver
 
+
 class TestLedDriver:
     @pytest.fixture
     def mock_led_cls(self):

@@ -7,9 +7,10 @@ from unittest.mock import MagicMock
 # preventing hardware access errors on Windows/CI.
 
 module_mock = MagicMock()
-sys.modules['gpiozero'] = module_mock
-sys.modules['gpiozero.pins.pigpio'] = module_mock
-sys.modules['rpi_lgpio'] = module_mock
+sys.modules["gpiozero"] = module_mock
+sys.modules["gpiozero.pins.pigpio"] = module_mock
+sys.modules["rpi_lgpio"] = module_mock
+
 
 @pytest.fixture(autouse=True)
 def mock_gpiozero():
