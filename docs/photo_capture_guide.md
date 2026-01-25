@@ -105,7 +105,7 @@ If you prefer to set up manually:
 ```bash
 # Update system
 sudo apt-get update
-sudo apt-get install -y python3-pip python3-venv libopencv-dev
+sudo apt-get install -y python3-pip python3-venv libopencv-dev swig python3-dev liblgpio-dev
 
 # Add user to video group (for camera access)
 sudo usermod -aG video $USER
@@ -198,6 +198,43 @@ Run the same deploy script to push updates:
 ```
 
 > **Note**: The script uses `scp` for file transfer. For large updates, consider using `rsync` for incremental syncing.
+
+---
+
+## Hardware Verification (Smoke Test)
+
+Before running the main application, verify your soldering and wiring using the dedicated hardware check script.
+
+### Running the Test
+**WARNING**: This test activates the 12V motor and LED rail. Ensure your external power supply is connected.
+
+1. SSH into the Pi and activate the environment:
+   ```bash
+   ssh legoSorter
+   source ~/lego-sorter-env/bin/activate
+   ```
+
+2. Run the check script:
+   ```bash
+   python ~/lego-sorter-v2/scripts/hardware_check.py
+   ```
+
+### Verification Steps
+Follow the on-screen prompts. The script is interactive:
+
+1.  **LED Check (Pin 23)**:
+    -   Script will blink the LED 3 times (full brightness).
+    -   Then performing a **Gamma-Corrected Fade** (0% -> 100% -> 0%).
+    -   *Pass Criteria*: Light should fade smoothly without flickering.
+
+2.  **Motor Check (Pins 13, 15, 19, 21)**:
+    -   Script will rotate the motor Clockwise for 5 seconds using an 8-step sequence.
+    -   *Pass Criteria*: Shaft rotates steadily with torque. **Crucially**, after stopping, the shaft should spin freely (coils de-energized).
+
+3.  **Button Check (Pin 11)**:
+    -   Script will wait up to 10 seconds for a press.
+    -   *Action*: Press the silver button when prompted.
+    -   *Pass Criteria*: Script prints `>> SUCCESS: Button Press Detected!`. If you don't press it, it must timeout with `>> TIMEOUT`.
 
 ---
 

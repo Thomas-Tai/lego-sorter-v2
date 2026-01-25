@@ -15,7 +15,7 @@ echo ""
 # System dependencies
 echo "[1/5] Installing system dependencies..."
 sudo apt-get update
-sudo apt-get install -y python3-pip python3-venv libopencv-dev
+sudo apt-get install -y python3-pip python3-venv libopencv-dev swig python3-dev liblgpio-dev
 
 # Camera permissions
 echo ""

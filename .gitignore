@@ -24,3 +24,6 @@ data/raw
 Thumbs.db
 # Agent workflow configs
 .agent/
+
+# Project Management Docs (Private)
+Project_Manage/
