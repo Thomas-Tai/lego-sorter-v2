@@ -5,26 +5,41 @@ from dataclasses import dataclass
 
 try:
     from gpiozero import Button, PWMLED, OutputDevice
-    from gpiozero.pins.pigpio import PiGPIOFactory
+
+    # from gpiozero.pins.pigpio import PiGPIOFactory  # Pi 5 uses lgpio by default
 except ImportError as e:
     print(f"WARNING: Hardware libraries not found ({e}). Using dummy classes.")
+
     # Fallback for non-Pi environments (e.g. CI/Windows dev)
     # We create dummy classes to avoid runtime errors during import
     # The actual functional logic should be mocked in tests
     class Button:
-        def __init__(self, *args, **kwargs): pass
+        def __init__(self, *args, **kwargs):
+            pass
+
         @property
-        def is_pressed(self): return False
+        def is_pressed(self):
+            return False
 
     class PWMLED:
-        def __init__(self, *args, **kwargs): self.value = 0
-        def on(self): pass
-        def off(self): pass
+        def __init__(self, *args, **kwargs):
+            self.value = 0
+
+        def on(self):
+            pass
+
+        def off(self):
+            pass
 
     class OutputDevice:
-        def __init__(self, *args, **kwargs): pass
-        def on(self): pass
-        def off(self): pass
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def on(self):
+            pass
+
+        def off(self):
+            pass
 
 
 # Constants
