@@ -1,0 +1,13 @@
+
+# Pi-side specific dependencies (Raspberry Pi)
+# Base is requirements.txt
+
+# Hardware
+gpiozero>=2.0
+rpi-lgpio>=0.6
+
+# Vision
+opencv-python-headless>=4.5.0
+
+# HTTP Client
+requests>=2.28.0

@@ -33,6 +33,7 @@ echo "[4/5] Installing Python packages..."
 source "$VENV_PATH/bin/activate"
 pip install --upgrade pip
 pip install -r "$PROJECT_PATH/requirements.txt"
+pip install -r "$PROJECT_PATH/requirements-pi.txt"
 
 # Verify installation
 echo ""
@@ -47,5 +48,9 @@ echo ""
 echo "To run the sorter:"
 echo "  source $VENV_PATH/bin/activate"
 echo "  cd $PROJECT_PATH"
+echo "  # Run Acquirer (M2)"
 echo "  python run_acquirer.py"
+echo "  # Run Sorter (M3/M4)"
+echo "  export LEGO_API_URL='http://<PC_IP>:8000'"
+echo "  python sorter_app/main.py"
 

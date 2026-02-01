@@ -7,6 +7,9 @@ __pycache__/
 # Virtual Environment
 venv/
 .venv/
+venv_server/
+venv_client/
+envs/
 
 # IDEs and editors
 .idea/
@@ -18,6 +21,11 @@ data/images/
 data/processed/*.sqlite
 data/temp_real_data/
 data/raw
+data/embeddings/
+
+# Models
+models/*.keras
+models/*.h5
 
 # OS-specific
 .DS_Store
@@ -27,3 +35,8 @@ Thumbs.db
 
 # Project Management Docs (Private)
 Project_Manage/
+# Project_Manage/ (Uncommented to allow tracking of documentation)
+data/db/*.sqlite
+*.log
+test_error.txt
+validation_report.txt

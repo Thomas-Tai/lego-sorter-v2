@@ -21,7 +21,7 @@ The photo capture system is designed to automatically capture multi-angle images
 - **Turntable**: Motorized platform to rotate parts for multi-angle capture
 - **LED Lighting**: Controlled lighting for consistent image quality
 
-The system captures **6 images per part** at 60-degree intervals, providing comprehensive coverage for model training.
+The system captures **8 images per part** at 45-degree intervals, providing comprehensive coverage for model training.
 
 ---
 
@@ -55,12 +55,12 @@ The implementation follows a clean architecture with dependency injection:
 
 | File | Purpose |
 |------|---------|
-| `run_acquirer.py` | Entry point to run the image acquisition |
-| `sorter_app/services/base_service.py` | Abstract interfaces for hardware and vision |
-| `sorter_app/services/vision_service.py` | OpenCV-based camera implementation |
-| `sorter_app/services/hardware_service.py` | GPIO control for LEDs and motor |
-| `sorter_app/exceptions.py` | Custom exception classes |
-| `tools/image_acquirer.py` | Main acquisition orchestrator |
+| `scripts/acquirer/run_acquisition.py` | Entry point for Acquirer Pi |
+| `modules/hardware/motor.py` | MotorDriver class |
+| `modules/hardware/led.py` | LedDriver class |
+| `modules/hardware/camera.py` | CameraDriver class (OpenCV wrapper) |
+| `modules/acquisition/acquirer.py` | ImageAcquirer orchestrator |
+| `modules/database/manager.py` | Database operations |
 | `config/hardware.yaml` | Hardware configuration settings |
 
 ---
@@ -79,7 +79,7 @@ The implementation follows a clean architecture with dependency injection:
 1. **Deploy the code** from your Windows machine:
    ```powershell
    cd CodeBase\lego-sorter-v2
-   .\scripts\deploy.ps1
+   .\scripts\acquirer\deploy.ps1
    ```
 
 2. **SSH into the Pi**:
@@ -89,7 +89,7 @@ The implementation follows a clean architecture with dependency injection:
 
 3. **Run the setup script** (first time only):
    ```bash
-   bash ~/lego-sorter-v2/scripts/setup_pi.sh
+   bash ~/lego-sorter-v2/scripts/acquirer/setup_pi.sh
    ```
 
 4. **Log out and log back in** (required for camera permissions):
@@ -180,24 +180,28 @@ From your Windows development machine:
 # Navigate to the project
 cd CodeBase\lego-sorter-v2
 
-# Deploy to Pi
-.\scripts\deploy.ps1
+# Normal deploy (incremental, hash-checks database)
+.\scripts\acquirer\deploy.ps1
+
+# Fresh deploy (removes old code folders on Pi first)
+.\scripts\acquirer\deploy.ps1 -Clean
 ```
 
 This script:
 1. Creates the project directory on the Pi
 2. Copies source code, config, and requirements
-3. Displays next steps
+3. Uses hash check to skip unchanged database (~4 sec vs 4+ min transfer)
+4. Displays next steps
 
 ### Updating Code
 
 Run the same deploy script to push updates:
 
 ```powershell
-.\scripts\deploy.ps1
+.\scripts\acquirer\deploy.ps1
 ```
 
-> **Note**: The script uses `scp` for file transfer. For large updates, consider using `rsync` for incremental syncing.
+> **Note**: The `-Clean` flag removes `modules/`, `scripts/`, `config/` before deploying but preserves `data/` (images and database).
 
 ---
 
@@ -254,7 +258,7 @@ Follow the on-screen prompts. The script is interactive:
 
 3. **Run the acquirer**:
    ```bash
-   python run_acquirer.py
+   python scripts/acquirer/run_acquisition.py --set 45345-1
    ```
 
 ### Workflow
@@ -272,19 +276,35 @@ The image acquirer will:
 
 ### Output
 
-Images are saved in the structure:
+Images are saved in a **hierarchical structure** for flexible training:
+
 ```
 data/images/
-├── 3001/
-│   ├── angle_01.jpg
-│   ├── angle_02.jpg
-│   ├── angle_03.jpg
-│   ├── angle_04.jpg
-│   ├── angle_05.jpg
-│   └── angle_06.jpg
-├── 3002/
-│   └── ...
+├── manifest.csv              # Full metadata for all images
+└── raw/
+    └── {part_num}/           # e.g., 3001/
+        └── {color_id}/       # e.g., 15/ (White)
+            ├── 3001_15_0.jpg
+            ├── 3001_15_1.jpg
+            ├── ...
+            └── 3001_15_7.jpg  # 8 angles
 ```
+
+**manifest.csv columns:**
+| Column | Example |
+|--------|--------|
+| image_path | `raw/3001/15/3001_15_0.jpg` |
+| part_num | `3001` |
+| color_id | `15` |
+| color_name | `White` |
+| part_name | `Brick 2x4` |
+| angle | `0` |
+| timestamp | `2026-01-30T12:00:00` |
+
+**Training flexibility:**
+- **Part identification**: Group by `part_num` folder
+- **Color identification**: Group by `color_id` subfolder
+- **Combined**: Use full path or manifest
 
 ---
 

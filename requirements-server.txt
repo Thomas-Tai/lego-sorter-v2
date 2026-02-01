@@ -1,0 +1,10 @@
+
+# Server-side specific dependencies (PC / Training)
+fastapi>=0.95.0
+uvicorn>=0.22.0
+python-multipart>=0.0.6
+tensorflow>=2.10.0,<2.16.0  # TF 2.10 is stable for Windows Native GPU
+rembg>=2.0.30
+onnxruntime-gpu>=1.14.0     # For rembg GPU support
+pillow>=9.5.0
+scipy>=1.10.0
