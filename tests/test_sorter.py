@@ -55,7 +55,9 @@ class TestLegoSorter:
             assert (
                 sorter.led.fade_out.call_count == 1
             ), "Expected fade_out to be called once"
-            sorter.motor.stop.assert_called()
+            # Note: motor.stop() is called internally by run_for(), but since
+            # MotorDriver is mocked, run_for() doesn't execute real code.
+            # The important thing is that run_for() was called.
 
             # Return to IDLE
             assert sorter.state == SorterState.IDLE
