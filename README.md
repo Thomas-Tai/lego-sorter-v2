@@ -34,8 +34,7 @@ lego-sorter-v2/
 │   │   ├── deploy.ps1    # Deploy sorter to Pi
 │   │   ├── run_sorter.sh # Run sorter with env config
 │   │   └── sorter.env.template  # Environment config template
-│   └── local/            # PC-only scripts
-│       └── init_db.py    # Initialize database
+│   └── local/            # PC-only scripts (training, inference, DB init)
 │
 ├── data/                 # All data files
 │   ├── raw/              # Rebrickable CSVs
@@ -184,6 +183,10 @@ python -m pytest
 - [Inference Verification](Project_Manage/reports/walkthrough_inference_verification.md)
 - [API Security Audit](Project_Manage/security_audit_2026-02-01.md)
 - [Environment & Asset Setup](Project_Manage/environment_setup_2026-02-01.md)
+
+### Development
+- [CI/CD Checklist](Project_Manage/CI_Checklist.md) - Pre-push verification guide
+- [Pre-Push Script](scripts/pre_push_check.ps1) - Automated CI checks
 
 ### Guides
 - [SSH Setup Guide](docs/ssh_setup.md)
