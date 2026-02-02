@@ -28,21 +28,29 @@ class CameraDriver:
         if not HAS_CV2:
             return False
 
-        self.cap = cv2.VideoCapture(self.camera_index)
+        # Use CAP_DSHOW on Windows to avoid MSMF errors/black screens
+        if os.name == 'nt':
+            self.cap = cv2.VideoCapture(self.camera_index, cv2.CAP_DSHOW)
+        else:
+            self.cap = cv2.VideoCapture(self.camera_index)
+
         if self.cap.isOpened():
+            # FORCE MJPG (Fixes static/corrupted frames on many USB cameras)
+            self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))
+
             # Set camera properties for better image quality
             self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)  # Minimize buffer
 
-            # Higher resolution for better detail
-            self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
-            self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+            # Commented out high-res to ensure basic compatibility first
+            # self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+            # self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
 
             # Enable autofocus (if supported by camera)
             self.cap.set(cv2.CAP_PROP_AUTOFOCUS, 1)
 
             # Disable auto-exposure for consistent lighting (LED provides stable light)
             # Note: Some cameras may not support this
-            self.cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, 0.25)  # 0.25 = manual mode
+            # self.cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, 0.25)  # 0.25 = manual mode
 
             # Log actual resolution obtained
             actual_w = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -56,7 +64,8 @@ class CameraDriver:
         """Discard buffered frames to get the current live image."""
         if self.cap is None:
             return
-        for _ in range(self.buffer_flush_count):
+        # Increase flush count significantly to warm up auto-exposure (Guided by docs)
+        for _ in range(30):
             self.cap.grab()  # Discard frame without decoding
 
     def capture(self, filepath: str) -> bool:

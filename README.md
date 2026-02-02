@@ -39,8 +39,13 @@ lego-sorter-v2/
 ├── data/                 # All data files
 │   ├── raw/              # Rebrickable CSVs
 │   ├── db/               # SQLite database
+│   ├── embeddings/       # Vector Database
+│   │   ├── legacy_embeddings.pkl  # Processed legacy data
+│   │   └── hybrid_embeddings.pkl  # Merged DB (Legacy + Real + B200C)
 │   └── images/           # Captured training images
 │       ├── raw/{part_num}/{color_id}/  # Hierarchical storage
+│       ├── raw_clean/    # Processed (BG Removed) Real images
+│       └── b200c_processed/ # Processed B200C synthetic data
 │       └── manifest.csv  # Image metadata for training
 │
 ├── config/               # Configuration files
@@ -103,6 +108,29 @@ lego-sorter-v2/
     python scripts/local/init_db.py
     ```
     This creates `data/db/lego_parts.sqlite`.
+
+4.  **Data Pipeline Status (Current):**
+    -   **Legacy Data**: ~82k entries (Processed)
+    -   **Real Captures**: ~1.7k entries (Processed & Merged)
+    -   **B200C Dataset**: ~10k entries (Synthetic, Merged)
+    -   **Total Hybrid DB**: ~94k vectors (`data/embeddings/hybrid_embeddings.pkl`)
+    -   **Source Weighting**: Enabled (Legacy 0.85×, B200C 0.95× penalty to prefer real captures)
+
+    **Set 45345-1 Coverage:**
+    -   105/116 parts have real captures (90% coverage)
+    -   All sortable parts covered; only large components (hub, motors) missing
+
+    **Verification Tools:**
+    -   **Camera Inference Test**:
+        ```bash
+        python scripts/local/run_camera_inference.py
+        ```
+        *Note: On Windows, this script uses DirectShow (CAP_DSHOW) and MJPG to prevent black screen issues.*
+
+    -   **Classification Debug**:
+        ```bash
+        python scripts/local/debug_classification.py
+        ```
 
 ## 🔧 Usage
 
@@ -191,3 +219,8 @@ python -m pytest
 ### Guides
 - [SSH Setup Guide](docs/ssh_setup.md)
 - [Photo Capture Guide](docs/photo_capture_guide.md)
+- [M4 Training Plan](docs/M4_Training_Plan.md) - Classifier training for set 45345-1
+
+### Debug Tools
+- `scripts/local/debug_classification.py` - Diagnose classification issues
+- `scripts/local/run_camera_inference.py` - Real-time camera inference test

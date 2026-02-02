@@ -8,9 +8,8 @@ from pathlib import Path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from sorter_app.services.config_service import ConfigService
-from sorter_app.services.vision_service import RaspberryPiVisionService
 from sorter_app.services.api_client import APIClient
-from sorter_app.exceptions import CameraError
+from modules.hardware.camera import CameraDriver
 
 # Setup logging
 logging.basicConfig(
@@ -52,25 +51,22 @@ def main():
                 return
             captured = True
         else:
-            # Initialize Vision only if capturing
+            # Initialize camera using CameraDriver (has MJPG + buffer fixes for C920)
+            camera = CameraDriver(camera_index=config_service.camera_index)
             try:
-                vision_service = RaspberryPiVisionService(
-                    camera_index=config_service.camera_index
-                )
+                if not camera.open():
+                    logger.error("Failed to open camera. Check connection.")
+                    return
                 logger.info("Capturing image...")
                 # Ensure directory exists
                 Path(image_path).parent.mkdir(parents=True, exist_ok=True)
-                if vision_service.capture_image(image_path):
+                if camera.capture(image_path):
                     captured = True
                     logger.info(f"Image captured to {image_path}")
                 else:
                     logger.error("Failed to capture image.")
-            except CameraError as e:
-                logger.error(f"Camera initialization failed: {e}")
-                return
             finally:
-                if "vision_service" in locals():
-                    vision_service.release()
+                camera.close()
 
         if captured:
             logger.info("Sending to inference API...")

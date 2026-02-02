@@ -26,6 +26,8 @@ IMG_SIZE = (224, 224)
 TOP_K = 5
 ENABLE_BACKGROUND_REMOVAL = True  # M3.5: Remove background before inference
 BACKGROUND_COLOR = (255, 255, 255)  # White background
+LEGACY_PENALTY = 0.85  # M3.5: Penalize legacy sources to prefer real captures
+B200C_PENALTY = 0.95   # M3.5: Slight penalty for synthetic b200c images
 
 # Resolve paths relative to project root
 _CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -160,13 +162,24 @@ class ModelLoader:
 
         # 3. Search (Dot product = Cosine Similarity for normalized vectors)
         similarities = np.dot(self.vectors, query_embedding)
-        top_indices = np.argsort(similarities)[::-1][:TOP_K]
+
+        # 4. Apply source weighting (penalize legacy/b200c to prefer real captures)
+        adjusted_similarities = similarities.copy()
+        for idx, filename in enumerate(self.filenames):
+            source = self.db[filename].get("source", "legacy")
+            if source == "legacy":
+                adjusted_similarities[idx] *= LEGACY_PENALTY
+            elif source == "b200c":
+                adjusted_similarities[idx] *= B200C_PENALTY
+
+        # 5. Sort by adjusted scores
+        top_indices = np.argsort(adjusted_similarities)[::-1][:TOP_K]
 
         results = []
         for idx in top_indices:
             filename = self.filenames[idx]
             entry = self.db[filename]
-            sim = float(similarities[idx])
+            sim = float(similarities[idx])  # Report original (unadjusted) confidence
 
             results.append(
                 {
