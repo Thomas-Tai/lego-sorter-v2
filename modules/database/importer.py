@@ -10,7 +10,9 @@ from typing import Dict, List, Any
 import logging
 
 # Default paths (relative to project root)
-DEFAULT_RAW_DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "data", "raw", "rebrickable_20250917")
+DEFAULT_RAW_DATA_DIR = os.path.join(
+    os.path.dirname(__file__), "..", "..", "data", "raw", "rebrickable_20250917"
+)
 
 
 class DataImporter:
@@ -54,7 +56,11 @@ class DataImporter:
 
         conn = self._get_connection()
         try:
-            conn.executemany("INSERT OR REPLACE INTO colors (id, name, rgb, is_trans) " "VALUES (?, ?, ?, ?)", data)
+            conn.executemany(
+                "INSERT OR REPLACE INTO colors (id, name, rgb, is_trans) "
+                "VALUES (?, ?, ?, ?)",
+                data,
+            )
             conn.commit()
             self.logger.info(f"Imported {len(data)} colors.")
         except Exception as e:
@@ -78,7 +84,9 @@ class DataImporter:
                 reader = csv.DictReader(f)
                 for row in reader:
                     img_url = row.get("img_url", None)
-                    batch.append((row["part_num"], row["name"], img_url, None))  # image_folder_name starts empty
+                    batch.append(
+                        (row["part_num"], row["name"], img_url, None)
+                    )  # image_folder_name starts empty
 
                     if len(batch) >= batch_size:
                         conn.executemany(
@@ -119,7 +127,13 @@ class DataImporter:
                 reader = csv.DictReader(f)
                 for row in reader:
                     batch.append(
-                        (row["set_num"], row["name"], int(row["year"]), int(row["theme_id"]), int(row["num_parts"]))
+                        (
+                            row["set_num"],
+                            row["name"],
+                            int(row["year"]),
+                            int(row["theme_id"]),
+                            int(row["num_parts"]),
+                        )
                     )
 
                     if len(batch) >= batch_size:
@@ -160,11 +174,17 @@ class DataImporter:
                     batch.append((int(row["id"]), int(row["version"]), row["set_num"]))
                     if len(batch) >= 10000:
                         conn.executemany(
-                            "INSERT OR REPLACE INTO inventories " "(id, version, set_num) VALUES (?, ?, ?)", batch
+                            "INSERT OR REPLACE INTO inventories "
+                            "(id, version, set_num) VALUES (?, ?, ?)",
+                            batch,
                         )
                         batch = []
             if batch:
-                conn.executemany("INSERT OR REPLACE INTO inventories " "(id, version, set_num) VALUES (?, ?, ?)", batch)
+                conn.executemany(
+                    "INSERT OR REPLACE INTO inventories "
+                    "(id, version, set_num) VALUES (?, ?, ?)",
+                    batch,
+                )
             conn.commit()
             self.logger.info("Imported inventories.")
         except Exception as e:

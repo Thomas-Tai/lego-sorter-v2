@@ -29,11 +29,15 @@ class TestImageAcquirer(unittest.TestCase):
 
         # Setup Mock DB
         mock_db_instance = MockDB.return_value
-        mock_db_instance.get_unphotographed_parts.return_value = [("3001", "Brick 2x4", 15, "White", None)]
+        mock_db_instance.get_unphotographed_parts.return_value = [
+            ("3001", "Brick 2x4", 15, "White", None)
+        ]
 
         # Init Acquirer
         # Trigger import/init
-        acquirer = ImageAcquirer("dummy.sqlite", "1234-1", self.mock_motor, self.mock_led)
+        acquirer = ImageAcquirer(
+            "dummy.sqlite", "1234-1", self.mock_motor, self.mock_led
+        )
 
         # Mock Camera
         mock_cap = MagicMock()
@@ -67,7 +71,9 @@ class TestImageAcquirer(unittest.TestCase):
         self.assertEqual(mock_cv2.imwrite.call_count, 8)
 
         # DB Update
-        mock_db_instance.update_part_image_folder.assert_called_with("3001", "raw/3001_15")
+        mock_db_instance.update_part_image_folder.assert_called_with(
+            "3001", "raw/3001_15"
+        )
         print("Test passed verification")
 
 

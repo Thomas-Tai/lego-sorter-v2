@@ -138,7 +138,9 @@ def test_motor():
     print(">> Stopping (All Low - Safety Check)...")
     for pin in motor_pins:
         pin.off()
-    print(">> Motor Test Complete. Verify NO holding torque (shaft should spin freely).")
+    print(
+        ">> Motor Test Complete. Verify NO holding torque (shaft should spin freely)."
+    )
 
 
 def test_button():

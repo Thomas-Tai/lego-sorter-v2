@@ -13,7 +13,9 @@ from sorter_app.services.api_client import APIClient
 from sorter_app.exceptions import CameraError
 
 # Setup logging
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger("SorterApp")
 
 
@@ -24,7 +26,9 @@ def main():
     import argparse
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--test-image", type=str, help="Path to test image (skip capture)")
+    parser.add_argument(
+        "--test-image", type=str, help="Path to test image (skip capture)"
+    )
     args = parser.parse_args()
 
     # 1. Initialize Services
@@ -50,7 +54,9 @@ def main():
         else:
             # Initialize Vision only if capturing
             try:
-                vision_service = RaspberryPiVisionService(camera_index=config_service.camera_index)
+                vision_service = RaspberryPiVisionService(
+                    camera_index=config_service.camera_index
+                )
                 logger.info("Capturing image...")
                 # Ensure directory exists
                 Path(image_path).parent.mkdir(parents=True, exist_ok=True)
@@ -75,7 +81,9 @@ def main():
                     matches = result.get("matches", [])
                     if matches:
                         top_match = matches[0]
-                        logger.info(f"✅ IDENTIFIED: {top_match['part_id']} (Color: {top_match['color_id']})")
+                        logger.info(
+                            f"✅ IDENTIFIED: {top_match['part_id']} (Color: {top_match['color_id']})"
+                        )
                         logger.info(f"   Confidence: {top_match['confidence']}")
                         logger.info(f"   Source: {top_match['source']}")
                     else:

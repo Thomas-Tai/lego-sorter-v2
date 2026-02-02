@@ -19,7 +19,9 @@ from modules.database import DatabaseManager
 from modules.hardware import MotorDriver, LedDriver, CameraDriver, ButtonDriver
 
 # Default paths
-DEFAULT_IMAGES_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "data", "images")
+DEFAULT_IMAGES_DIR = os.path.join(
+    os.path.dirname(__file__), "..", "..", "data", "images"
+)
 MANIFEST_FILENAME = "manifest.csv"
 
 
@@ -57,11 +59,27 @@ class ImageAcquirer:
         if not os.path.exists(self.manifest_path):
             with open(self.manifest_path, "w", newline="", encoding="utf-8") as f:
                 writer = csv.writer(f)
-                writer.writerow(["image_path", "part_num", "color_id", "color_name", "part_name", "angle", "timestamp"])
+                writer.writerow(
+                    [
+                        "image_path",
+                        "part_num",
+                        "color_id",
+                        "color_name",
+                        "part_name",
+                        "angle",
+                        "timestamp",
+                    ]
+                )
             self.logger.info(f"Created manifest at {self.manifest_path}")
 
     def _append_to_manifest(
-        self, image_path: str, part_num: str, color_id: int, color_name: str, part_name: str, angle: int
+        self,
+        image_path: str,
+        part_num: str,
+        color_id: int,
+        color_name: str,
+        part_name: str,
+        angle: int,
     ):
         """Append a captured image entry to the manifest."""
         # Store relative path from images_dir
@@ -70,7 +88,15 @@ class ImageAcquirer:
         with open(self.manifest_path, "a", newline="", encoding="utf-8") as f:
             writer = csv.writer(f)
             writer.writerow(
-                [relative_path, part_num, color_id, color_name, part_name, angle, datetime.now().isoformat()]
+                [
+                    relative_path,
+                    part_num,
+                    color_id,
+                    color_name,
+                    part_name,
+                    angle,
+                    datetime.now().isoformat(),
+                ]
             )
 
     def _capture_one_face(
@@ -105,7 +131,9 @@ class ImageAcquirer:
             else:
                 print(f"  [SIM] Captured: {filename}")
 
-            self._append_to_manifest(filepath, part_num, color_id, color_name, part_name, angle_idx)
+            self._append_to_manifest(
+                filepath, part_num, color_id, color_name, part_name, angle_idx
+            )
             captured += 1
             self.motor.step(steps_per_angle)
             time.sleep(0.5)
@@ -134,7 +162,9 @@ class ImageAcquirer:
                 pass
             time.sleep(0.05)
 
-    def capture_part(self, part_num: str, color_id: int, color_name: str, part_name: str) -> bool:
+    def capture_part(
+        self, part_num: str, color_id: int, color_name: str, part_name: str
+    ) -> bool:
         """Capture images for a single part with selectable capture modes.
 
         Modes:
@@ -150,7 +180,9 @@ class ImageAcquirer:
         print(f"  Part: {part_num}")
         print(f"  Color: {color_name} (ID: {color_id})")
         print(f"  Reference: https://rebrickable.com/parts/{part_num}/")
-        print(f"  Image: https://cdn.rebrickable.com/media/parts/photos/{color_id}/{part_num}.jpg")
+        print(
+            f"  Image: https://cdn.rebrickable.com/media/parts/photos/{color_id}/{part_num}.jpg"
+        )
         print(f"{'='*60}")
         print(f"\n選擇拍攝模式:")
         print(f"  1 = 簡單 (16張: 頂+底) - 對稱零件")
@@ -198,7 +230,13 @@ class ImageAcquirer:
             time.sleep(0.3)
             start_angle = face_idx * 8
             captured_count += self._capture_one_face(
-                save_dir, part_num, color_id, color_name, part_name, start_angle, face_labels[face_idx]
+                save_dir,
+                part_num,
+                color_id,
+                color_name,
+                part_name,
+                start_angle,
+                face_labels[face_idx],
             )
 
         self.logger.info(f"Captured {captured_count} images for {part_num}")
@@ -219,7 +257,9 @@ class ImageAcquirer:
         print(f"Manifest: {self.manifest_path}")
 
         for idx, (part_num, name, color_id, color_name, _) in enumerate(unphotographed):
-            print(f"\n[{idx+1}/{total}] Part: {part_num} | Name: {name} | Color: {color_name}")
+            print(
+                f"\n[{idx+1}/{total}] Part: {part_num} | Name: {name} | Color: {color_name}"
+            )
 
             success = self.capture_part(part_num, color_id, color_name, name)
 

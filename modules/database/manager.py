@@ -9,7 +9,9 @@ from dataclasses import dataclass
 from typing import List, Optional, Tuple
 
 # Default database path (relative to project root)
-DEFAULT_DB_PATH = os.path.join(os.path.dirname(__file__), "..", "..", "data", "db", "lego_parts.sqlite")
+DEFAULT_DB_PATH = os.path.join(
+    os.path.dirname(__file__), "..", "..", "data", "db", "lego_parts.sqlite"
+)
 
 
 @dataclass
@@ -99,7 +101,9 @@ class DatabaseManager:
         conn.commit()
         conn.close()
 
-    def get_parts_in_set(self, set_num: str) -> List[Tuple[str, str, int, str, Optional[str]]]:
+    def get_parts_in_set(
+        self, set_num: str
+    ) -> List[Tuple[str, str, int, str, Optional[str]]]:
         """
         Retrieve all distinct parts for a given set.
         Returns list of (part_num, part_name, color_id, color_name, image_folder_name)

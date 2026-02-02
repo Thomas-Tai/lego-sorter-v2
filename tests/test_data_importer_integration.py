@@ -40,10 +40,14 @@ def test_importer_with_real_rebrickable_data():
     # our core assumptions about the data structure and filtering outcome.
 
     # Assumption 1: Is the database file available
-    assert db_path.exists(), "Database file should be created after running with real data."
+    assert (
+        db_path.exists()
+    ), "Database file should be created after running with real data."
 
     # Assumption 2: Did we load the correct DataFrames?
-    assert importer.inventory_parts_df is not None, "inventory_parts_df should be loaded."
+    assert (
+        importer.inventory_parts_df is not None
+    ), "inventory_parts_df should be loaded."
 
     # Assumption 3: Does the loaded DataFrame contain the columns we need?
     required_cols = ["inventory_id", "part_num", "color_id", "quantity"]
@@ -53,7 +57,9 @@ def test_importer_with_real_rebrickable_data():
 
     # Assumption 4: After filtering, did we get a plausible number of parts?
     # We know Spike Essential has parts, so the result should not be empty.
-    assert not importer.inventory_parts_df.empty, "Filtered inventory should not be empty for Spike Essential."
+    assert (
+        not importer.inventory_parts_df.empty
+    ), "Filtered inventory should not be empty for Spike Essential."
 
     # Assumption 5: Does the filtered data truly only contain our target inventory?
     # This is the most crucial test of our filtering logic.

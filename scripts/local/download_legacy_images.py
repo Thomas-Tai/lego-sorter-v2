@@ -7,7 +7,9 @@ import sys
 
 # Configuration
 DB_PATH = r"C:\D\WorkSpace\[Cloud]_Company_Sync\MSC\OwnInfo\MyResearchProject\Lego Sorter\_2 labelling_software\project_root_demo\2_lego_database\rebrickableToSqlite3\lego_R_20240627.db"
-OUTPUT_DIR = r"C:\D\WorkSpace\[Local]_Station\01_Heavy_Assets\lego_inventory_parts_ID_Color"
+OUTPUT_DIR = (
+    r"C:\D\WorkSpace\[Local]_Station\01_Heavy_Assets\lego_inventory_parts_ID_Color"
+)
 MAX_WORKERS = 32  # Increased from 8 to 32 for IO-bound task
 
 
@@ -70,7 +72,9 @@ def main():
 
     with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
         # Submit all tasks. Pass the whole tuple (part_num, color_id, url)
-        futures = {executor.submit(download_image, row, OUTPUT_DIR): row for row in rows}
+        futures = {
+            executor.submit(download_image, row, OUTPUT_DIR): row for row in rows
+        }
 
         processed = 0
         for future in as_completed(futures):

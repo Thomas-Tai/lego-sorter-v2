@@ -27,7 +27,9 @@ for name, path in test_images:
         with open(path, "rb") as f:
             r = requests.post(API_URL, files={"image": f}, timeout=60)
         m = r.json()["matches"][0]
-        print(f"{name:20} -> part={m['part_id']:8} color={m['color_id']:4} conf={m['confidence']:.4f}")
+        print(
+            f"{name:20} -> part={m['part_id']:8} color={m['color_id']:4} conf={m['confidence']:.4f}"
+        )
     except Exception as e:
         print(f"{name:20} -> ERROR: {e}")
 

@@ -40,7 +40,10 @@ def load_and_preprocess_image(path):
 def build_model():
     """Build the embedding model (same as build_full_vector_db.py)."""
     base_model = tf.keras.applications.EfficientNetB0(
-        include_top=False, weights="imagenet", input_shape=(IMG_SIZE[0], IMG_SIZE[1], 3), pooling="avg"
+        include_top=False,
+        weights="imagenet",
+        input_shape=(IMG_SIZE[0], IMG_SIZE[1], 3),
+        pooling="avg",
     )
     inputs = keras.Input(shape=(IMG_SIZE[0], IMG_SIZE[1], 3))
     x = base_model(inputs, training=False)
@@ -71,8 +74,12 @@ def main():
     current_dir = os.path.dirname(os.path.abspath(__file__))
     project_root = os.path.dirname(os.path.dirname(current_dir))
 
-    legacy_db_path = os.path.join(project_root, "data", "embeddings", "legacy_embeddings.pkl")
-    hybrid_db_path = os.path.join(project_root, "data", "embeddings", "hybrid_embeddings.pkl")
+    legacy_db_path = os.path.join(
+        project_root, "data", "embeddings", "legacy_embeddings.pkl"
+    )
+    hybrid_db_path = os.path.join(
+        project_root, "data", "embeddings", "hybrid_embeddings.pkl"
+    )
     # Use background-removed images from raw_clean/ (M3.5)
     raw_dir = os.path.join(project_root, "data", "images", "raw_clean")
 
@@ -96,7 +103,12 @@ def main():
         part_id = parts[0] if len(parts) >= 1 else "unknown"
         color_id = parts[1] if len(parts) >= 2 else "9999"
 
-        hybrid_db[filename] = {"embedding": embedding, "source": "legacy", "part_id": part_id, "color_id": color_id}
+        hybrid_db[filename] = {
+            "embedding": embedding,
+            "source": "legacy",
+            "part_id": part_id,
+            "color_id": color_id,
+        }
 
     # 3. Scan Real Captures
     print(f"Scanning Real Captures in {raw_dir}...")
@@ -143,12 +155,19 @@ def main():
         # Store in hybrid DB with "real_" prefix to avoid key collision
         for idx, (filename, part_id, color_id) in enumerate(valid_entries):
             key = f"real_{part_id}_{color_id}_{filename}"
-            hybrid_db[key] = {"embedding": embeddings[idx], "source": "real", "part_id": part_id, "color_id": color_id}
+            hybrid_db[key] = {
+                "embedding": embeddings[idx],
+                "source": "real",
+                "part_id": part_id,
+                "color_id": color_id,
+            }
             processed += 1
 
         elapsed = time.time() - start_time
         rate = processed / elapsed if elapsed > 0 else 0
-        sys.stdout.write(f"\rProcessed: {processed}/{len(real_images)} | Rate: {rate:.1f} img/s")
+        sys.stdout.write(
+            f"\rProcessed: {processed}/{len(real_images)} | Rate: {rate:.1f} img/s"
+        )
         sys.stdout.flush()
 
     print(f"\n\nDone! Processed {processed} real images.")
@@ -160,7 +179,9 @@ def main():
 
     legacy_count = sum(1 for v in hybrid_db.values() if v["source"] == "legacy")
     real_count = sum(1 for v in hybrid_db.values() if v["source"] == "real")
-    print(f"Hybrid DB saved: {legacy_count} legacy + {real_count} real = {len(hybrid_db)} total.")
+    print(
+        f"Hybrid DB saved: {legacy_count} legacy + {real_count} real = {len(hybrid_db)} total."
+    )
 
 
 if __name__ == "__main__":

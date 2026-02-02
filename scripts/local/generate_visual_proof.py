@@ -56,7 +56,9 @@ def generate_tsne_plot(embeddings_dict, sample_size=2000, output_file="tsne_plot
     label_to_int = {l: i for i, l in enumerate(unique_labels)}
     c_values = [label_to_int[l] for l in labels]
 
-    scatter = plt.scatter(vis_data[:, 0], vis_data[:, 1], c=c_values, cmap="tab20", alpha=0.6, s=10)
+    scatter = plt.scatter(
+        vis_data[:, 0], vis_data[:, 1], c=c_values, cmap="tab20", alpha=0.6, s=10
+    )
     plt.title(f"T-SNE Visualization of LEGO Part Embeddings (N={len(keys)})")
     plt.xlabel("Dimension 1")
     plt.ylabel("Dimension 2")
@@ -150,7 +152,9 @@ def verify_retrieval_performance(embeddings_dict, test_size=1000):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--db", type=str, default=r"data/embeddings/legacy_embeddings.pkl")
+    parser.add_argument(
+        "--db", type=str, default=r"data/embeddings/legacy_embeddings.pkl"
+    )
     parser.add_argument("--output", type=str, default="models/proof_tsne.png")
     args = parser.parse_args()
 

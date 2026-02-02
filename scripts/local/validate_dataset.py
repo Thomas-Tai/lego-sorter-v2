@@ -24,7 +24,14 @@ def find_turntable_circle(image):
     blurred = cv2.GaussianBlur(gray, (9, 9), 2)
 
     circles = cv2.HoughCircles(
-        blurred, cv2.HOUGH_GRADIENT, dp=1.2, minDist=100, param1=50, param2=30, minRadius=200, maxRadius=500
+        blurred,
+        cv2.HOUGH_GRADIENT,
+        dp=1.2,
+        minDist=100,
+        param1=50,
+        param2=30,
+        minRadius=200,
+        maxRadius=500,
     )
 
     if circles is not None:

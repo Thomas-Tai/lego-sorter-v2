@@ -9,7 +9,9 @@ import sys
 from concurrent.futures import ThreadPoolExecutor
 
 # Configuration
-IMAGE_DIR = r"C:\D\WorkSpace\[Local]_Station\01_Heavy_Assets\lego_inventory_parts_ID_Color"
+IMAGE_DIR = (
+    r"C:\D\WorkSpace\[Local]_Station\01_Heavy_Assets\lego_inventory_parts_ID_Color"
+)
 BATCH_SIZE = 64
 IMG_SIZE = (224, 224)
 
@@ -75,7 +77,10 @@ def main():
     try:
         # Use standard ImageNet backbone for robustness
         base_model = tf.keras.applications.EfficientNetB0(
-            include_top=False, weights="imagenet", input_shape=(IMG_SIZE[0], IMG_SIZE[1], 3), pooling="avg"
+            include_top=False,
+            weights="imagenet",
+            input_shape=(IMG_SIZE[0], IMG_SIZE[1], 3),
+            pooling="avg",
         )
         # Add L2 normalization
         inputs = keras.Input(shape=(IMG_SIZE[0], IMG_SIZE[1], 3))
@@ -93,7 +98,11 @@ def main():
         print(f"Image directory not found: {IMAGE_DIR}")
         return
 
-    all_files = [f for f in os.listdir(IMAGE_DIR) if f.lower().endswith((".jpg", ".jpeg", ".png"))]
+    all_files = [
+        f
+        for f in os.listdir(IMAGE_DIR)
+        if f.lower().endswith((".jpg", ".jpeg", ".png"))
+    ]
     total_files = len(all_files)
 
     # Filter processed

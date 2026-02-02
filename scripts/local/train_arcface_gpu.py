@@ -143,7 +143,10 @@ def create_dataset(image_paths, labels, training=True):
 
 def create_embedding_model():
     base_model = keras.applications.EfficientNetB0(
-        include_top=False, weights="imagenet", input_shape=(IMG_SIZE, IMG_SIZE, 3), pooling="avg"
+        include_top=False,
+        weights="imagenet",
+        input_shape=(IMG_SIZE, IMG_SIZE, 3),
+        pooling="avg",
     )
     base_model.trainable = False
 
@@ -167,7 +170,9 @@ class ArcFaceTrainer(keras.Model):
         super().__init__(**kwargs)
         self.embedding_model = embedding_model
         # Ensure ArcFace calculations are in float32
-        self.arcface = ArcFaceLayer(num_classes, EMBEDDING_DIM, ARCFACE_SCALE, ARCFACE_MARGIN, dtype="float32")
+        self.arcface = ArcFaceLayer(
+            num_classes, EMBEDDING_DIM, ARCFACE_SCALE, ARCFACE_MARGIN, dtype="float32"
+        )
         self.loss_tracker = keras.metrics.Mean(name="loss")
         self.accuracy_tracker = keras.metrics.SparseCategoricalAccuracy(name="accuracy")
 
@@ -179,7 +184,9 @@ class ArcFaceTrainer(keras.Model):
         with tf.GradientTape() as tape:
             embeddings = self.embedding_model(images, training=True)
             logits = self.arcface(embeddings, labels, training=True)
-            loss = keras.losses.sparse_categorical_crossentropy(labels, logits, from_logits=True)
+            loss = keras.losses.sparse_categorical_crossentropy(
+                labels, logits, from_logits=True
+            )
 
             # Scale loss for mixed precision
             scaled_loss = self.optimizer.get_scaled_loss(loss)
@@ -190,17 +197,25 @@ class ArcFaceTrainer(keras.Model):
 
         self.loss_tracker.update_state(loss)
         self.accuracy_tracker.update_state(labels, logits)
-        return {"loss": self.loss_tracker.result(), "accuracy": self.accuracy_tracker.result()}
+        return {
+            "loss": self.loss_tracker.result(),
+            "accuracy": self.accuracy_tracker.result(),
+        }
 
     def test_step(self, data):
         images, labels = data
         embeddings = self.embedding_model(images, training=False)
         logits = self.arcface(embeddings, labels, training=False)
-        loss = keras.losses.sparse_categorical_crossentropy(labels, logits, from_logits=True)
+        loss = keras.losses.sparse_categorical_crossentropy(
+            labels, logits, from_logits=True
+        )
 
         self.loss_tracker.update_state(loss)
         self.accuracy_tracker.update_state(labels, logits)
-        return {"loss": self.loss_tracker.result(), "accuracy": self.accuracy_tracker.result()}
+        return {
+            "loss": self.loss_tracker.result(),
+            "accuracy": self.accuracy_tracker.result(),
+        }
 
 
 def main():

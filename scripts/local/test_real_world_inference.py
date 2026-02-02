@@ -31,7 +31,10 @@ def build_model():
     print("Initializing Model...")
     # Base model
     base_model = tf.keras.applications.EfficientNetB0(
-        include_top=False, weights="imagenet", input_shape=(IMG_SIZE[0], IMG_SIZE[1], 3), pooling="avg"
+        include_top=False,
+        weights="imagenet",
+        input_shape=(IMG_SIZE[0], IMG_SIZE[1], 3),
+        pooling="avg",
     )
 
     # L2 Normalization wrapper
@@ -91,14 +94,19 @@ def find_closest_matches(model, db, img_path, top_k=5):
     for i in range(min(top_k, len(results))):
         fname, dist = results[i]
         sim = 1.0 - dist
-        print(f"{fname[:37]+'...' if len(fname)>37 else fname:<40} | {dist:.4f}     | {sim:.4f}")
+        print(
+            f"{fname[:37]+'...' if len(fname)>37 else fname:<40} | {dist:.4f}     | {sim:.4f}"
+        )
 
 
 def main():
     parser = argparse.ArgumentParser(description="Lego Part Inference Tester")
     parser.add_argument("--image", type=str, help="Path to query image")
     parser.add_argument(
-        "--db", type=str, default=r"data/embeddings/legacy_embeddings.pkl", help="Path to database pickle"
+        "--db",
+        type=str,
+        default=r"data/embeddings/legacy_embeddings.pkl",
+        help="Path to database pickle",
     )
     args = parser.parse_args()
 

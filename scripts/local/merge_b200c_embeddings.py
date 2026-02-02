@@ -46,7 +46,10 @@ def load_and_preprocess_image(path):
 def build_model():
     """Build the embedding model (same as other scripts)."""
     base_model = tf.keras.applications.EfficientNetB0(
-        include_top=False, weights="imagenet", input_shape=(IMG_SIZE[0], IMG_SIZE[1], 3), pooling="avg"
+        include_top=False,
+        weights="imagenet",
+        input_shape=(IMG_SIZE[0], IMG_SIZE[1], 3),
+        pooling="avg",
     )
     inputs = keras.Input(shape=(IMG_SIZE[0], IMG_SIZE[1], 3))
     x = base_model(inputs, training=False)
@@ -100,7 +103,9 @@ def main():
     current_dir = os.path.dirname(os.path.abspath(__file__))
     project_root = os.path.dirname(os.path.dirname(current_dir))
 
-    hybrid_db_path = os.path.join(project_root, "data", "embeddings", "hybrid_embeddings.pkl")
+    hybrid_db_path = os.path.join(
+        project_root, "data", "embeddings", "hybrid_embeddings.pkl"
+    )
     b200c_dir = B200C_PROCESSED_DIR
 
     # 1. Load existing Hybrid DB
@@ -191,7 +196,9 @@ def main():
         # Progress
         elapsed = time.time() - start_time
         rate = processed / elapsed if elapsed > 0 else 0
-        sys.stdout.write(f"\rProcessed: {processed}/{len(new_images)} | Rate: {rate:.1f} img/s")
+        sys.stdout.write(
+            f"\rProcessed: {processed}/{len(new_images)} | Rate: {rate:.1f} img/s"
+        )
         sys.stdout.flush()
 
     print(f"\n\nDone! Processed {processed} B200C images.")

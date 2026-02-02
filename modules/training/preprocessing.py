@@ -45,7 +45,9 @@ def find_turntable_circle(image: np.ndarray) -> tuple:
     return None
 
 
-def crop_to_square(image: np.ndarray, center_x: int, center_y: int, size: int, padding: int = 30) -> np.ndarray:
+def crop_to_square(
+    image: np.ndarray, center_x: int, center_y: int, size: int, padding: int = 30
+) -> np.ndarray:
     """Crop image to a square centered on the given point.
 
     Args:
@@ -105,7 +107,9 @@ def preprocess_image(input_path: str, output_path: str, target_size: int = 400) 
     cropped = crop_to_square(image, center_x, center_y, crop_size)
 
     # Resize to target size
-    resized = cv2.resize(cropped, (target_size, target_size), interpolation=cv2.INTER_AREA)
+    resized = cv2.resize(
+        cropped, (target_size, target_size), interpolation=cv2.INTER_AREA
+    )
 
     # Ensure output directory exists
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
@@ -115,7 +119,9 @@ def preprocess_image(input_path: str, output_path: str, target_size: int = 400) 
     return True
 
 
-def preprocess_dataset(raw_dir: str, processed_dir: str, target_size: int = 400) -> dict:
+def preprocess_dataset(
+    raw_dir: str, processed_dir: str, target_size: int = 400
+) -> dict:
     """Process all images in the raw directory structure.
 
     Args:
@@ -156,7 +162,10 @@ def preprocess_dataset(raw_dir: str, processed_dir: str, target_size: int = 400)
         if (i + 1) % 10 == 0 or (i + 1) == total:
             print(f"  [{i+1}/{total}] Processed")
 
-    print(f"\nComplete: {stats['success']} processed, " f"{stats['skipped']} skipped, {stats['failed']} failed")
+    print(
+        f"\nComplete: {stats['success']} processed, "
+        f"{stats['skipped']} skipped, {stats['failed']} failed"
+    )
 
     return stats
 
@@ -166,8 +175,12 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Preprocess LEGO part images")
     parser.add_argument("--raw", default="data/images/raw", help="Path to raw images")
-    parser.add_argument("--output", default="data/images/processed", help="Path for processed images")
-    parser.add_argument("--size", type=int, default=400, help="Output image size (square)")
+    parser.add_argument(
+        "--output", default="data/images/processed", help="Path for processed images"
+    )
+    parser.add_argument(
+        "--size", type=int, default=400, help="Output image size (square)"
+    )
 
     args = parser.parse_args()
 

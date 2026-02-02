@@ -146,7 +146,10 @@ def create_dataset(image_paths, labels, training=True):
 def create_embedding_model():
     """Create backbone model that outputs embeddings."""
     base_model = keras.applications.EfficientNetB0(
-        include_top=False, weights="imagenet", input_shape=(IMG_SIZE, IMG_SIZE, 3), pooling="avg"
+        include_top=False,
+        weights="imagenet",
+        input_shape=(IMG_SIZE, IMG_SIZE, 3),
+        pooling="avg",
     )
 
     # Freeze base model initially
@@ -187,7 +190,9 @@ class ArcFaceTrainer(keras.Model):
     def __init__(self, embedding_model, num_classes, **kwargs):
         super().__init__(**kwargs)
         self.embedding_model = embedding_model
-        self.arcface = ArcFaceLayer(num_classes, EMBEDDING_DIM, ARCFACE_SCALE, ARCFACE_MARGIN)
+        self.arcface = ArcFaceLayer(
+            num_classes, EMBEDDING_DIM, ARCFACE_SCALE, ARCFACE_MARGIN
+        )
         self.loss_tracker = keras.metrics.Mean(name="loss")
         self.accuracy_tracker = keras.metrics.SparseCategoricalAccuracy(name="accuracy")
 
@@ -200,11 +205,15 @@ class ArcFaceTrainer(keras.Model):
         with tf.GradientTape() as tape:
             embeddings = self.embedding_model(images, training=True)
             logits = self.arcface(embeddings, labels, training=True)
-            loss = keras.losses.sparse_categorical_crossentropy(labels, logits, from_logits=True)
+            loss = keras.losses.sparse_categorical_crossentropy(
+                labels, logits, from_logits=True
+            )
             loss = tf.reduce_mean(loss)
 
         # Update weights
-        trainable_vars = self.embedding_model.trainable_variables + self.arcface.trainable_variables
+        trainable_vars = (
+            self.embedding_model.trainable_variables + self.arcface.trainable_variables
+        )
         gradients = tape.gradient(loss, trainable_vars)
         self.optimizer.apply_gradients(zip(gradients, trainable_vars))
 
@@ -212,25 +221,35 @@ class ArcFaceTrainer(keras.Model):
         self.loss_tracker.update_state(loss)
         self.accuracy_tracker.update_state(labels, logits)
 
-        return {"loss": self.loss_tracker.result(), "accuracy": self.accuracy_tracker.result()}
+        return {
+            "loss": self.loss_tracker.result(),
+            "accuracy": self.accuracy_tracker.result(),
+        }
 
     def test_step(self, data):
         images, labels = data
         embeddings = self.embedding_model(images, training=False)
         logits = self.arcface(embeddings, labels, training=False)
-        loss = keras.losses.sparse_categorical_crossentropy(labels, logits, from_logits=True)
+        loss = keras.losses.sparse_categorical_crossentropy(
+            labels, logits, from_logits=True
+        )
 
         self.loss_tracker.update_state(tf.reduce_mean(loss))
         self.accuracy_tracker.update_state(labels, logits)
 
-        return {"loss": self.loss_tracker.result(), "accuracy": self.accuracy_tracker.result()}
+        return {
+            "loss": self.loss_tracker.result(),
+            "accuracy": self.accuracy_tracker.result(),
+        }
 
     @property
     def metrics(self):
         return [self.loss_tracker, self.accuracy_tracker]
 
 
-def visualize_embeddings(embedding_model, image_paths, labels, label_names, output_path):
+def visualize_embeddings(
+    embedding_model, image_paths, labels, label_names, output_path
+):
     """Visualize embeddings using t-SNE."""
     print("\nGenerating embedding visualization...")
 
@@ -253,7 +272,9 @@ def visualize_embeddings(embedding_model, image_paths, labels, label_names, outp
     labels = np.array(labels)
 
     # t-SNE
-    tsne = TSNE(n_components=2, random_state=42, perplexity=min(30, len(embeddings) - 1))
+    tsne = TSNE(
+        n_components=2, random_state=42, perplexity=min(30, len(embeddings) - 1)
+    )
     embeddings_2d = tsne.fit_transform(embeddings)
 
     # Plot
@@ -299,7 +320,9 @@ def main():
         image_paths, labels, test_size=0.2, stratify=labels, random_state=42
     )
 
-    print(f"\nDataset: {len(train_paths)} train, {len(val_paths)} val, {num_classes} classes")
+    print(
+        f"\nDataset: {len(train_paths)} train, {len(val_paths)} val, {num_classes} classes"
+    )
     print(f"Embedding dimension: {EMBEDDING_DIM}")
     print(f"ArcFace scale: {ARCFACE_SCALE}, margin: {ARCFACE_MARGIN}")
 

@@ -8,7 +8,9 @@ def main():
     # Co-authored-by: Name <email>
     # Generated-by: Name
     # Generated with: Tool
-    pattern = re.compile(r"^\s*(Co-authored-by|Generated-by|Generated with)\s*:.*", re.IGNORECASE)
+    pattern = re.compile(
+        r"^\s*(Co-authored-by|Generated-by|Generated with)\s*:.*", re.IGNORECASE
+    )
 
     try:
         # Read from stdin

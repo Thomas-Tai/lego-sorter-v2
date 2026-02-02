@@ -31,8 +31,12 @@ BACKGROUND_COLOR = (255, 255, 255)  # White background
 _CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 _PROJECT_ROOT = os.path.dirname(os.path.dirname(_CURRENT_DIR))  # lego-sorter-v2
 # Use hybrid DB if available, fallback to legacy
-HYBRID_DB_PATH = os.path.join(_PROJECT_ROOT, "data", "embeddings", "hybrid_embeddings.pkl")
-LEGACY_DB_PATH = os.path.join(_PROJECT_ROOT, "data", "embeddings", "legacy_embeddings.pkl")
+HYBRID_DB_PATH = os.path.join(
+    _PROJECT_ROOT, "data", "embeddings", "hybrid_embeddings.pkl"
+)
+LEGACY_DB_PATH = os.path.join(
+    _PROJECT_ROOT, "data", "embeddings", "legacy_embeddings.pkl"
+)
 DB_PATH = HYBRID_DB_PATH if os.path.exists(HYBRID_DB_PATH) else LEGACY_DB_PATH
 
 
@@ -83,11 +87,16 @@ class ModelLoader:
                     "color_id": parts[1] if len(parts) >= 2 else "9999",
                 }
             self.is_hybrid = False
-            print(f"[ModelLoader] Loaded {len(self.db)} embeddings (LEGACY format, converted).")
+            print(
+                f"[ModelLoader] Loaded {len(self.db)} embeddings (LEGACY format, converted)."
+            )
 
         # 2. Build Model
         base_model = tf.keras.applications.EfficientNetB0(
-            include_top=False, weights="imagenet", input_shape=(IMG_SIZE[0], IMG_SIZE[1], 3), pooling="avg"
+            include_top=False,
+            weights="imagenet",
+            input_shape=(IMG_SIZE[0], IMG_SIZE[1], 3),
+            pooling="avg",
         )
         inputs = keras.Input(shape=(IMG_SIZE[0], IMG_SIZE[1], 3))
         x = base_model(inputs, training=False)
@@ -135,7 +144,9 @@ class ModelLoader:
             try:
                 image_bytes = self.remove_background(image_bytes)
             except Exception as e:
-                print(f"[ModelLoader] Background removal failed: {e}, using original image")
+                print(
+                    f"[ModelLoader] Background removal failed: {e}, using original image"
+                )
 
         # 1. Preprocess Image
         img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
@@ -172,7 +183,9 @@ class ModelLoader:
 
 # --- FastAPI App ---
 app = FastAPI(
-    title="LEGO Part Recognition API", version="1.0.0", description="API for identifying LEGO parts from images."
+    title="LEGO Part Recognition API",
+    version="1.0.0",
+    description="API for identifying LEGO parts from images.",
 )
 
 # Global model loader instance
@@ -212,7 +225,10 @@ async def predict(image: UploadFile = File(...)):
     # Validate content type (relaxed to handle client variations)
     valid_types = ["image/jpeg", "image/png", "application/octet-stream", None]
     if image.content_type not in valid_types:
-        raise HTTPException(status_code=400, detail=f"Unsupported content type: {image.content_type}. Use JPEG/PNG.")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Unsupported content type: {image.content_type}. Use JPEG/PNG.",
+        )
 
     try:
         contents = await image.read()

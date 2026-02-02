@@ -22,12 +22,25 @@ from modules.training.preprocessing import preprocess_dataset
 def main():
     import argparse
 
-    parser = argparse.ArgumentParser(description="Preprocess LEGO part images - crop to turntable area")
-    parser.add_argument("--raw", default="data/images/raw", help="Path to raw images (default: data/images/raw)")
-    parser.add_argument(
-        "--output", default="data/images/processed", help="Path for processed images (default: data/images/processed)"
+    parser = argparse.ArgumentParser(
+        description="Preprocess LEGO part images - crop to turntable area"
     )
-    parser.add_argument("--size", type=int, default=400, help="Output image size in pixels (square, default: 400)")
+    parser.add_argument(
+        "--raw",
+        default="data/images/raw",
+        help="Path to raw images (default: data/images/raw)",
+    )
+    parser.add_argument(
+        "--output",
+        default="data/images/processed",
+        help="Path for processed images (default: data/images/processed)",
+    )
+    parser.add_argument(
+        "--size",
+        type=int,
+        default=400,
+        help="Output image size in pixels (square, default: 400)",
+    )
 
     args = parser.parse_args()
 

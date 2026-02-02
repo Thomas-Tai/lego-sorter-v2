@@ -48,7 +48,9 @@ class LEGOPartMatcher:
 
         # Pre-compute reference embedding matrix for fast similarity
         self.part_ids = sorted(self.reference_db.keys())
-        self.reference_embeddings = np.array([self.reference_db[pid]["embedding"] for pid in self.part_ids])
+        self.reference_embeddings = np.array(
+            [self.reference_db[pid]["embedding"] for pid in self.part_ids]
+        )
 
         print(f"Loaded {len(self.part_ids)} parts")
         return self

@@ -85,7 +85,10 @@ def build_reference_database(model):
         avg_embedding = np.mean(embeddings, axis=0)
         # L2 normalize
         avg_embedding = avg_embedding / np.linalg.norm(avg_embedding)
-        reference_db[part_id] = {"embedding": avg_embedding.tolist(), "num_samples": len(embeddings)}
+        reference_db[part_id] = {
+            "embedding": avg_embedding.tolist(),
+            "num_samples": len(embeddings),
+        }
 
     print(f"\nTotal: {len(reference_db)} parts, {total_images} images")
     return reference_db

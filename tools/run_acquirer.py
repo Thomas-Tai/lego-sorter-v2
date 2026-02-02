@@ -52,7 +52,9 @@ class ImageAcquirer:
 
     def capture_part(self, part_num, folder_name):
         """Capture images for a single part from multiple angles."""
-        save_dir = os.path.join(os.path.dirname(__file__), "..", "datasets", "raw", folder_name)
+        save_dir = os.path.join(
+            os.path.dirname(__file__), "..", "datasets", "raw", folder_name
+        )
         os.makedirs(save_dir, exist_ok=True)
 
         self.logger.info(f"Starting capture for part {part_num}. Saving to {save_dir}")
@@ -116,7 +118,9 @@ class ImageAcquirer:
         print(f"Found {total} unphotographed parts in set {self.set_num}")
 
         for idx, (part_num, name, color_id, color_name, _) in enumerate(unphotographed):
-            print(f"\n[{idx+1}/{total}] Part: {part_num} | Name: {name} | Color: {color_name}")
+            print(
+                f"\n[{idx+1}/{total}] Part: {part_num} | Name: {name} | Color: {color_name}"
+            )
 
             # Create a unique folder name: part_num_color_id
             folder_name = f"{part_num}_{color_id}"
@@ -143,9 +147,17 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Lego Sorter Image Acquisition Tool")
     parser.add_argument(
-        "--set", type=str, default="45345-1", help="Set Number to process (default: Spike Essential 45345-1)"
+        "--set",
+        type=str,
+        default="45345-1",
+        help="Set Number to process (default: Spike Essential 45345-1)",
     )
-    parser.add_argument("--db", type=str, default="sorter_app/data/lego_parts.sqlite", help="Path to database")
+    parser.add_argument(
+        "--db",
+        type=str,
+        default="sorter_app/data/lego_parts.sqlite",
+        help="Path to database",
+    )
 
     args = parser.parse_args()
 

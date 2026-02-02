@@ -5,7 +5,9 @@ import sys
 from concurrent.futures import ThreadPoolExecutor
 
 # Configuration
-IMAGE_DIR = r"C:\D\WorkSpace\[Local]_Station\01_Heavy_Assets\lego_inventory_parts_ID_Color"
+IMAGE_DIR = (
+    r"C:\D\WorkSpace\[Local]_Station\01_Heavy_Assets\lego_inventory_parts_ID_Color"
+)
 DB_PATH = r"C:\D\WorkSpace\[Cloud]_Company_Sync\MSC\OwnInfo\MyResearchProject\Lego Sorter\_2 labelling_software\project_root_demo\2_lego_database\rebrickableToSqlite3\lego_R_20240627.db"
 
 
@@ -75,7 +77,9 @@ def main():
     print(f"Missing from DB list: {len(missing_files)}")
 
     # 4. Check integrity of existing files
-    print(f"Checking integrity of {len(files_to_check)} files (Size > 0 & Valid Header)...")
+    print(
+        f"Checking integrity of {len(files_to_check)} files (Size > 0 & Valid Header)..."
+    )
 
     corrupt_files = []
     zero_byte_files = []
@@ -109,12 +113,18 @@ def main():
     print("\n\n--- Integrity Report ---")
     print(f"Total Expected: {total_expected}")
     print(f"Total Found: {len(actual_files)}")
-    print(f"Missing: {len(missing_files)} ({(len(missing_files)/total_expected)*100:.2f}%)")
+    print(
+        f"Missing: {len(missing_files)} ({(len(missing_files)/total_expected)*100:.2f}%)"
+    )
     print(f"Corrupt (Cannot Open): {len(corrupt_files)}")
     print(f"Zero Byte Files: {len(zero_byte_files)}")
 
-    valid_count = total_expected - len(missing_files) - len(corrupt_files) - len(zero_byte_files)
-    print(f"\nFinal Valid Dataset Size: {valid_count} ({(valid_count/total_expected)*100:.2f}%)")
+    valid_count = (
+        total_expected - len(missing_files) - len(corrupt_files) - len(zero_byte_files)
+    )
+    print(
+        f"\nFinal Valid Dataset Size: {valid_count} ({(valid_count/total_expected)*100:.2f}%)"
+    )
 
 
 if __name__ == "__main__":

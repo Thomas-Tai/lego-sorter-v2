@@ -71,8 +71,12 @@ def process_image_simple(input_path: str) -> Image.Image:
 
 def main():
     parser = argparse.ArgumentParser(description="Process B200C dataset")
-    parser.add_argument("--views", type=int, default=50, help="Number of views to sample per part")
-    parser.add_argument("--skip-rembg", action="store_true", help="Skip background removal")
+    parser.add_argument(
+        "--views", type=int, default=50, help="Number of views to sample per part"
+    )
+    parser.add_argument(
+        "--skip-rembg", action="store_true", help="Skip background removal"
+    )
     args = parser.parse_args()
 
     num_views = args.views
@@ -89,7 +93,9 @@ def main():
     if use_rembg:
         print("\nInitializing rembg with CUDA provider...")
         try:
-            session = new_session("u2net", providers=["CUDAExecutionProvider", "CPUExecutionProvider"])
+            session = new_session(
+                "u2net", providers=["CUDAExecutionProvider", "CPUExecutionProvider"]
+            )
             print("rembg session ready (GPU accelerated).")
         except Exception as e:
             print(f"Warning: CUDA not available, falling back to CPU: {e}")
@@ -107,7 +113,13 @@ def main():
 
     # Scan part folders
     print(f"\nScanning {B200C_ROOT}...")
-    part_folders = sorted([f for f in os.listdir(B200C_ROOT) if os.path.isdir(os.path.join(B200C_ROOT, f))])
+    part_folders = sorted(
+        [
+            f
+            for f in os.listdir(B200C_ROOT)
+            if os.path.isdir(os.path.join(B200C_ROOT, f))
+        ]
+    )
     print(f"Found {len(part_folders)} parts.")
 
     # Calculate total images
@@ -124,7 +136,13 @@ def main():
         part_path = os.path.join(B200C_ROOT, part_id)
 
         # List all images in part folder
-        images = sorted([f for f in os.listdir(part_path) if f.lower().endswith((".jpg", ".jpeg", ".png"))])
+        images = sorted(
+            [
+                f
+                for f in os.listdir(part_path)
+                if f.lower().endswith((".jpg", ".jpeg", ".png"))
+            ]
+        )
 
         if not images:
             continue

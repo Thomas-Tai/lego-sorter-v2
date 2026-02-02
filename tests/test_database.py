@@ -34,11 +34,17 @@ class TestDatabaseManager(unittest.TestCase):
         )
 
         # Insert Colors
-        cursor.execute("INSERT INTO colors (id, name, rgb, is_trans) VALUES (15, 'White', 'FFFFFF', 0)")
-        cursor.execute("INSERT INTO colors (id, name, rgb, is_trans) VALUES (19, 'Tan', 'E4CD9E', 0)")
+        cursor.execute(
+            "INSERT INTO colors (id, name, rgb, is_trans) VALUES (15, 'White', 'FFFFFF', 0)"
+        )
+        cursor.execute(
+            "INSERT INTO colors (id, name, rgb, is_trans) VALUES (19, 'Tan', 'E4CD9E', 0)"
+        )
 
         # Insert Inventory
-        cursor.execute("INSERT INTO inventories (id, version, set_num) VALUES (100, 1, '1234-1')")
+        cursor.execute(
+            "INSERT INTO inventories (id, version, set_num) VALUES (100, 1, '1234-1')"
+        )
 
         # Insert Inventory Parts
         # Part 3001 in White (qty 5)
@@ -71,7 +77,9 @@ class TestDatabaseManager(unittest.TestCase):
     def test_get_unphotographed_parts(self):
         parts = self.db.get_unphotographed_parts("1234-1")
         self.assertEqual(len(parts), 1)
-        self.assertEqual(parts[0][0], "3001")  # 3001 has NULL image_folder_name in dummy data
+        self.assertEqual(
+            parts[0][0], "3001"
+        )  # 3001 has NULL image_folder_name in dummy data
 
     def test_update_part_image_folder(self):
         self.db.update_part_image_folder("3001", "photos/3001")

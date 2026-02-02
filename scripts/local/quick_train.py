@@ -89,7 +89,10 @@ def create_dataset(image_paths, labels, training=True):
 def create_model(num_classes):
     """Create EfficientNetB0-based classifier."""
     base_model = keras.applications.EfficientNetB0(
-        include_top=False, weights="imagenet", input_shape=(IMG_SIZE, IMG_SIZE, 3), pooling="avg"
+        include_top=False,
+        weights="imagenet",
+        input_shape=(IMG_SIZE, IMG_SIZE, 3),
+        pooling="avg",
     )
 
     # Freeze base model

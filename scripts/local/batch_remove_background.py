@@ -21,7 +21,9 @@ BACKGROUND_COLOR = (255, 255, 255)  # White background
 
 # Create rembg session with CUDA provider for GPU acceleration
 print("Initializing rembg with CUDA provider...")
-SESSION = new_session("u2net", providers=["CUDAExecutionProvider", "CPUExecutionProvider"])
+SESSION = new_session(
+    "u2net", providers=["CUDAExecutionProvider", "CPUExecutionProvider"]
+)
 print("rembg session ready.")
 
 

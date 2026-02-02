@@ -21,7 +21,9 @@ class ConfigService:
     def camera_index(self) -> int:
         """Get the camera device index."""
         try:
-            return int(os.environ.get("LEGO_CAMERA_INDEX", str(self.DEFAULT_CAMERA_INDEX)))
+            return int(
+                os.environ.get("LEGO_CAMERA_INDEX", str(self.DEFAULT_CAMERA_INDEX))
+            )
         except ValueError:
             return self.DEFAULT_CAMERA_INDEX
 
