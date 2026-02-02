@@ -11,6 +11,7 @@ from scipy.spatial.distance import cosine
 # Configuration (Must match build_full_vector_db.py)
 IMG_SIZE = (224, 224)
 
+
 def load_and_preprocess_image(path):
     try:
         img = cv2.imread(path)
@@ -25,16 +26,14 @@ def load_and_preprocess_image(path):
         print(f"Error processing image: {e}")
         return None
 
+
 def build_model():
     print("Initializing Model...")
     # Base model
     base_model = tf.keras.applications.EfficientNetB0(
-        include_top=False,
-        weights="imagenet",
-        input_shape=(IMG_SIZE[0], IMG_SIZE[1], 3),
-        pooling="avg"
+        include_top=False, weights="imagenet", input_shape=(IMG_SIZE[0], IMG_SIZE[1], 3), pooling="avg"
     )
-    
+
     # L2 Normalization wrapper
     inputs = keras.Input(shape=(IMG_SIZE[0], IMG_SIZE[1], 3))
     x = base_model(inputs, training=False)
@@ -44,16 +43,18 @@ def build_model():
     print("Model initialized.")
     return model
 
+
 def load_database(db_path):
     print(f"Loading database from {db_path}...")
     try:
-        with open(db_path, 'rb') as f:
+        with open(db_path, "rb") as f:
             data = pickle.load(f)
         print(f"Database loaded. {len(data)} entries.")
         return data
     except Exception as e:
         print(f"Failed to load database: {e}")
         return None
+
 
 def find_closest_matches(model, db, img_path, top_k=5):
     # 1. Process Input
@@ -70,7 +71,7 @@ def find_closest_matches(model, db, img_path, top_k=5):
     # 3. Search
     print(f"Searching for matches for: {os.path.basename(img_path)}...")
     results = []
-    
+
     # Simple linear scan (sufficient for 80k items for now, usually < 1s)
     # Cosine distance = 1 - cosine_similarity. We want smallest distance.
     for filename, emb in db.items():
@@ -92,16 +93,19 @@ def find_closest_matches(model, db, img_path, top_k=5):
         sim = 1.0 - dist
         print(f"{fname[:37]+'...' if len(fname)>37 else fname:<40} | {dist:.4f}     | {sim:.4f}")
 
+
 def main():
     parser = argparse.ArgumentParser(description="Lego Part Inference Tester")
     parser.add_argument("--image", type=str, help="Path to query image")
-    parser.add_argument("--db", type=str, default=r"data/embeddings/legacy_embeddings.pkl", help="Path to database pickle")
+    parser.add_argument(
+        "--db", type=str, default=r"data/embeddings/legacy_embeddings.pkl", help="Path to database pickle"
+    )
     args = parser.parse_args()
 
     # Paths
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    project_root = os.path.dirname(os.path.dirname(current_dir)) # lego-sorter-v2
-    
+    project_root = os.path.dirname(os.path.dirname(current_dir))  # lego-sorter-v2
+
     # Resolve DB Path
     db_path = args.db
     if not os.path.isabs(db_path):
@@ -125,13 +129,14 @@ def main():
         print("\n--- Interactive Mode ---")
         while True:
             path = input("\nEnter image path (or 'q' to quit): ").strip().strip('"')
-            if path.lower() == 'q':
+            if path.lower() == "q":
                 break
             if not os.path.exists(path):
                 print("File not found.")
                 continue
-            
+
             find_closest_matches(model, db, path)
+
 
 if __name__ == "__main__":
     main()

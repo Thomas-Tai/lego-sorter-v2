@@ -7,9 +7,9 @@ class TestLegoSorter:
     @pytest.fixture
     def sorter(self):
         # Patch hardware drivers to prevent real hardware access during init
-        with patch("lego_sorter.Button") as mock_btn, patch(
-            "lego_sorter.LedDriver"
-        ) as mock_led, patch("lego_sorter.MotorDriver") as mock_motor:
+        with patch("lego_sorter.Button") as mock_btn, patch("lego_sorter.LedDriver") as mock_led, patch(
+            "lego_sorter.MotorDriver"
+        ) as mock_motor:
 
             sorter = LegoSorter()
             # Verify mocking
@@ -40,21 +40,15 @@ class TestLegoSorter:
             sorter.start_cycle()
 
             # Assertions using call_count for robustness
-            assert (
-                sorter.led.fade_in.call_count == 1
-            ), "Expected fade_in to be called once"
+            assert sorter.led.fade_in.call_count == 1, "Expected fade_in to be called once"
 
             # 2. SCAN: Wait (simulated by sleep inside run_cycle or logic)
 
             # 3. SORT: Motor Action
-            assert (
-                sorter.motor.run_for.call_count == 1
-            ), "Expected motor.run_for to be called once"
+            assert sorter.motor.run_for.call_count == 1, "Expected motor.run_for to be called once"
 
             # 4. DONE: LED Fade Out & Cleanup
-            assert (
-                sorter.led.fade_out.call_count == 1
-            ), "Expected fade_out to be called once"
+            assert sorter.led.fade_out.call_count == 1, "Expected fade_out to be called once"
             sorter.motor.stop.assert_called()
 
             # Return to IDLE

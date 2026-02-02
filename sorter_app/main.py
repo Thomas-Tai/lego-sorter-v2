@@ -1,4 +1,3 @@
-
 import logging
 import os
 import sys
@@ -14,17 +13,16 @@ from sorter_app.services.api_client import APIClient
 from sorter_app.exceptions import CameraError
 
 # Setup logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger("SorterApp")
+
 
 def main():
     logger.info("Starting Lego Sorter App...")
-    
+
     # Parse CLI args
     import argparse
+
     parser = argparse.ArgumentParser()
     parser.add_argument("--test-image", type=str, help="Path to test image (skip capture)")
     args = parser.parse_args()
@@ -32,16 +30,16 @@ def main():
     # 1. Initialize Services
     config_service = ConfigService()
     api_client = APIClient(base_url=config_service.api_url)
-    
+
     # 2. Main Logic
     try:
         current_dir = os.path.dirname(os.path.abspath(__file__))
         project_root = os.path.dirname(current_dir)
         data_dir = os.path.join(project_root, "data")
         image_path = os.path.join(data_dir, "captures", "test_capture.jpg")
-        
+
         captured = False
-        
+
         if args.test_image:
             logger.info(f"Using test image: {args.test_image}")
             image_path = args.test_image
@@ -65,14 +63,14 @@ def main():
                 logger.error(f"Camera initialization failed: {e}")
                 return
             finally:
-                 if 'vision_service' in locals():
+                if "vision_service" in locals():
                     vision_service.release()
 
         if captured:
             logger.info("Sending to inference API...")
             try:
                 result = api_client.predict_from_image(image_path)
-                
+
                 if result.get("success"):
                     matches = result.get("matches", [])
                     if matches:
@@ -84,15 +82,16 @@ def main():
                         logger.info("❓ No matches found.")
                 else:
                     logger.error(f"API Error: {result}")
-                    
+
             except IOError as e:
                 logger.error(f"Prediction failed: {e}")
-                
+
         else:
             logger.error("Failed to capture image.")
-            
+
     except KeyboardInterrupt:
         logger.info("Stopping app...")
+
 
 if __name__ == "__main__":
     main()

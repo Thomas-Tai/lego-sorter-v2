@@ -2,6 +2,7 @@
 Data Importer Module
 Provides DataImporter class for importing Rebrickable CSV data.
 """
+
 import csv
 import os
 import sqlite3
@@ -9,9 +10,7 @@ from typing import Dict, List, Any
 import logging
 
 # Default paths (relative to project root)
-DEFAULT_RAW_DATA_DIR = os.path.join(
-    os.path.dirname(__file__), '..', '..', 'data', 'raw', 'rebrickable_20250917'
-)
+DEFAULT_RAW_DATA_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "data", "raw", "rebrickable_20250917")
 
 
 class DataImporter:
@@ -41,30 +40,21 @@ class DataImporter:
             self.logger.warning(f"File not found: {file_path}")
             return []
 
-        with open(file_path, 'r', encoding='utf-8') as f:
+        with open(file_path, "r", encoding="utf-8") as f:
             reader = csv.DictReader(f)
             return list(reader)
 
     def import_colors(self):
         self.logger.info("Importing colors...")
-        rows = self._read_csv('colors.csv')
+        rows = self._read_csv("colors.csv")
         data = []
         for row in rows:
-            is_trans = 1 if row.get('is_trans') in ('t', 'True') else 0
-            data.append((
-                row['id'],
-                row['name'],
-                row['rgb'],
-                is_trans
-            ))
+            is_trans = 1 if row.get("is_trans") in ("t", "True") else 0
+            data.append((row["id"], row["name"], row["rgb"], is_trans))
 
         conn = self._get_connection()
         try:
-            conn.executemany(
-                'INSERT OR REPLACE INTO colors (id, name, rgb, is_trans) '
-                'VALUES (?, ?, ?, ?)',
-                data
-            )
+            conn.executemany("INSERT OR REPLACE INTO colors (id, name, rgb, is_trans) " "VALUES (?, ?, ?, ?)", data)
             conn.commit()
             self.logger.info(f"Imported {len(data)} colors.")
         except Exception as e:
@@ -74,7 +64,7 @@ class DataImporter:
 
     def import_parts(self):
         self.logger.info("Importing parts...")
-        file_path = os.path.join(self.raw_data_dir, 'parts.csv')
+        file_path = os.path.join(self.raw_data_dir, "parts.csv")
         if not os.path.exists(file_path):
             self.logger.warning("parts.csv not found")
             return
@@ -84,32 +74,27 @@ class DataImporter:
         batch = []
 
         try:
-            with open(file_path, 'r', encoding='utf-8') as f:
+            with open(file_path, "r", encoding="utf-8") as f:
                 reader = csv.DictReader(f)
                 for row in reader:
-                    img_url = row.get('img_url', None)
-                    batch.append((
-                        row['part_num'],
-                        row['name'],
-                        img_url,
-                        None  # image_folder_name starts empty
-                    ))
+                    img_url = row.get("img_url", None)
+                    batch.append((row["part_num"], row["name"], img_url, None))  # image_folder_name starts empty
 
                     if len(batch) >= batch_size:
                         conn.executemany(
-                            'INSERT OR IGNORE INTO parts '
-                            '(part_num, name, img_url, image_folder_name) '
-                            'VALUES (?, ?, ?, ?)',
-                            batch
+                            "INSERT OR IGNORE INTO parts "
+                            "(part_num, name, img_url, image_folder_name) "
+                            "VALUES (?, ?, ?, ?)",
+                            batch,
                         )
                         batch = []
 
             if batch:
                 conn.executemany(
-                    'INSERT OR IGNORE INTO parts '
-                    '(part_num, name, img_url, image_folder_name) '
-                    'VALUES (?, ?, ?, ?)',
-                    batch
+                    "INSERT OR IGNORE INTO parts "
+                    "(part_num, name, img_url, image_folder_name) "
+                    "VALUES (?, ?, ?, ?)",
+                    batch,
                 )
 
             conn.commit()
@@ -121,7 +106,7 @@ class DataImporter:
 
     def import_sets(self):
         self.logger.info("Importing sets...")
-        file_path = os.path.join(self.raw_data_dir, 'sets.csv')
+        file_path = os.path.join(self.raw_data_dir, "sets.csv")
         if not os.path.exists(file_path):
             return
 
@@ -130,32 +115,28 @@ class DataImporter:
         batch = []
 
         try:
-            with open(file_path, 'r', encoding='utf-8') as f:
+            with open(file_path, "r", encoding="utf-8") as f:
                 reader = csv.DictReader(f)
                 for row in reader:
-                    batch.append((
-                        row['set_num'],
-                        row['name'],
-                        int(row['year']),
-                        int(row['theme_id']),
-                        int(row['num_parts'])
-                    ))
+                    batch.append(
+                        (row["set_num"], row["name"], int(row["year"]), int(row["theme_id"]), int(row["num_parts"]))
+                    )
 
                     if len(batch) >= batch_size:
                         conn.executemany(
-                            'INSERT OR REPLACE INTO sets '
-                            '(set_num, name, year, theme_id, num_parts) '
-                            'VALUES (?, ?, ?, ?, ?)',
-                            batch
+                            "INSERT OR REPLACE INTO sets "
+                            "(set_num, name, year, theme_id, num_parts) "
+                            "VALUES (?, ?, ?, ?, ?)",
+                            batch,
                         )
                         batch = []
 
             if batch:
                 conn.executemany(
-                    'INSERT OR REPLACE INTO sets '
-                    '(set_num, name, year, theme_id, num_parts) '
-                    'VALUES (?, ?, ?, ?, ?)',
-                    batch
+                    "INSERT OR REPLACE INTO sets "
+                    "(set_num, name, year, theme_id, num_parts) "
+                    "VALUES (?, ?, ?, ?, ?)",
+                    batch,
                 )
             conn.commit()
             self.logger.info("Imported sets.")
@@ -166,34 +147,24 @@ class DataImporter:
 
     def import_inventories(self):
         self.logger.info("Importing inventories...")
-        file_path = os.path.join(self.raw_data_dir, 'inventories.csv')
+        file_path = os.path.join(self.raw_data_dir, "inventories.csv")
         if not os.path.exists(file_path):
             return
 
         conn = self._get_connection()
         batch = []
         try:
-            with open(file_path, 'r', encoding='utf-8') as f:
+            with open(file_path, "r", encoding="utf-8") as f:
                 reader = csv.DictReader(f)
                 for row in reader:
-                    batch.append((
-                        int(row['id']),
-                        int(row['version']),
-                        row['set_num']
-                    ))
+                    batch.append((int(row["id"]), int(row["version"]), row["set_num"]))
                     if len(batch) >= 10000:
                         conn.executemany(
-                            'INSERT OR REPLACE INTO inventories '
-                            '(id, version, set_num) VALUES (?, ?, ?)',
-                            batch
+                            "INSERT OR REPLACE INTO inventories " "(id, version, set_num) VALUES (?, ?, ?)", batch
                         )
                         batch = []
             if batch:
-                conn.executemany(
-                    'INSERT OR REPLACE INTO inventories '
-                    '(id, version, set_num) VALUES (?, ?, ?)',
-                    batch
-                )
+                conn.executemany("INSERT OR REPLACE INTO inventories " "(id, version, set_num) VALUES (?, ?, ?)", batch)
             conn.commit()
             self.logger.info("Imported inventories.")
         except Exception as e:
@@ -203,7 +174,7 @@ class DataImporter:
 
     def import_inventory_parts(self):
         self.logger.info("Importing inventory_parts (this might take a while)...")
-        file_path = os.path.join(self.raw_data_dir, 'inventory_parts.csv')
+        file_path = os.path.join(self.raw_data_dir, "inventory_parts.csv")
         if not os.path.exists(file_path):
             return
 
@@ -212,34 +183,36 @@ class DataImporter:
         batch = []
 
         try:
-            with open(file_path, 'r', encoding='utf-8') as f:
+            with open(file_path, "r", encoding="utf-8") as f:
                 reader = csv.DictReader(f)
                 for row in reader:
-                    is_spare = 1 if row.get('is_spare') in ('t', 'True') else 0
-                    batch.append((
-                        int(row['inventory_id']),
-                        row['part_num'],
-                        int(row['color_id']),
-                        int(row['quantity']),
-                        is_spare,
-                        row.get('img_url', None)
-                    ))
+                    is_spare = 1 if row.get("is_spare") in ("t", "True") else 0
+                    batch.append(
+                        (
+                            int(row["inventory_id"]),
+                            row["part_num"],
+                            int(row["color_id"]),
+                            int(row["quantity"]),
+                            is_spare,
+                            row.get("img_url", None),
+                        )
+                    )
 
                     if len(batch) >= batch_size:
                         conn.executemany(
-                            'INSERT OR IGNORE INTO inventory_parts '
-                            '(inventory_id, part_num, color_id, quantity, '
-                            'is_spare, img_url) VALUES (?, ?, ?, ?, ?, ?)',
-                            batch
+                            "INSERT OR IGNORE INTO inventory_parts "
+                            "(inventory_id, part_num, color_id, quantity, "
+                            "is_spare, img_url) VALUES (?, ?, ?, ?, ?, ?)",
+                            batch,
                         )
                         batch = []
 
             if batch:
                 conn.executemany(
-                    'INSERT OR IGNORE INTO inventory_parts '
-                    '(inventory_id, part_num, color_id, quantity, '
-                    'is_spare, img_url) VALUES (?, ?, ?, ?, ?, ?)',
-                    batch
+                    "INSERT OR IGNORE INTO inventory_parts "
+                    "(inventory_id, part_num, color_id, quantity, "
+                    "is_spare, img_url) VALUES (?, ?, ?, ?, ?, ?)",
+                    batch,
                 )
             conn.commit()
             self.logger.info("Imported inventory_parts.")

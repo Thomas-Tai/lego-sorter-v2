@@ -3,4 +3,4 @@
 from .manager import DatabaseManager
 from .importer import DataImporter
 
-__all__ = ['DatabaseManager', 'DataImporter']
+__all__ = ["DatabaseManager", "DataImporter"]

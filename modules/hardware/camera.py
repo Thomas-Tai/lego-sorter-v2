@@ -2,11 +2,13 @@
 Camera Driver Module
 Provides CameraDriver class for webcam/USB camera control.
 """
+
 import os
 import time
 
 try:
     import cv2
+
     HAS_CV2 = True
 except ImportError:
     cv2 = None
@@ -30,23 +32,23 @@ class CameraDriver:
         if self.cap.isOpened():
             # Set camera properties for better image quality
             self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)  # Minimize buffer
-            
+
             # Higher resolution for better detail
             self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
             self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
-            
+
             # Enable autofocus (if supported by camera)
             self.cap.set(cv2.CAP_PROP_AUTOFOCUS, 1)
-            
+
             # Disable auto-exposure for consistent lighting (LED provides stable light)
             # Note: Some cameras may not support this
             self.cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, 0.25)  # 0.25 = manual mode
-            
+
             # Log actual resolution obtained
             actual_w = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
             actual_h = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
             print(f"Camera opened: {actual_w}x{actual_h}")
-            
+
             return True
         return False
 
@@ -59,22 +61,22 @@ class CameraDriver:
 
     def capture(self, filepath: str) -> bool:
         """Capture a single frame and save to filepath. Returns True if successful.
-        
+
         Flushes buffer first to ensure we get the current live image.
         """
         if not HAS_CV2 or self.cap is None or not self.cap.isOpened():
             # Simulation mode
             os.makedirs(os.path.dirname(filepath), exist_ok=True)
-            with open(filepath, 'w') as f:
+            with open(filepath, "w") as f:
                 f.write("simulation_image")
             return False  # Return False to indicate simulation
 
         # Flush buffer to get current frame
         self._flush_buffer()
-        
+
         # Small delay for camera to stabilize
         time.sleep(0.05)
-        
+
         ret, frame = self.cap.read()
         if ret and frame is not None:
             os.makedirs(os.path.dirname(filepath), exist_ok=True)

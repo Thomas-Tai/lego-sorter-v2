@@ -3,12 +3,13 @@
 Database Initialization Script
 Initializes and populates the LEGO parts database from Rebrickable CSVs.
 """
+
 import os
 import sys
 import logging
 
 # Add project root to path
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
 from modules.database import DatabaseManager, DataImporter
 

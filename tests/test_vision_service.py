@@ -36,9 +36,7 @@ class TestRaspberryPiVisionService(unittest.TestCase):
 
     @patch("sorter_app.services.vision_service.cv2.imwrite")
     @patch("sorter_app.services.vision_service.cv2.VideoCapture")
-    def test_capture_image_success(
-        self, mock_capture_class: MagicMock, mock_imwrite: MagicMock
-    ) -> None:
+    def test_capture_image_success(self, mock_capture_class: MagicMock, mock_imwrite: MagicMock) -> None:
         """Test successful image capture."""
         # Setup mocks
         mock_cap = MagicMock()

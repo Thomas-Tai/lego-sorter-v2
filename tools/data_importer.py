@@ -61,9 +61,7 @@ class DataImporter:
         for filename in self.required_files:
             file_path = self.raw_data_path / filename
             if not file_path.exists():
-                raise FileNotFoundError(
-                    f"Error: Required data file not found at '{file_path}'"
-                )
+                raise FileNotFoundError(f"Error: Required data file not found at '{file_path}'")
             df_name = filename.replace(".csv", "_df")
             df = pd.read_csv(file_path, encoding="utf-8")
             setattr(self, df_name, df)
@@ -84,17 +82,13 @@ class DataImporter:
         # Ensure join keys are of the same type to prevent silent merge failures.
         self.sets_df["set_num"] = self.sets_df["set_num"].astype(str)
         self.inventories_df["set_num"] = self.inventories_df["set_num"].astype(str)
-        self.inventory_parts_df["inventory_id"] = self.inventory_parts_df[
-            "inventory_id"
-        ].astype(int)
+        self.inventory_parts_df["inventory_id"] = self.inventory_parts_df["inventory_id"].astype(int)
         self.inventories_df["id"] = self.inventories_df["id"].astype(int)
 
         # --- STEP 1: Find the inventory IDs for our target sets ---
         # For each set, we only want the latest version of the inventory.
         # This prevents us from including parts from older, outdated inventories.
-        latest_inventories = self.inventories_df.loc[
-            self.inventories_df.groupby("set_num")["version"].idxmax()
-        ]
+        latest_inventories = self.inventories_df.loc[self.inventories_df.groupby("set_num")["version"].idxmax()]
 
         # Now, merge this cleaned inventory list with our target sets.
         target_inventories = pd.merge(
@@ -105,9 +99,7 @@ class DataImporter:
         )
 
         if target_inventories.empty:
-            raise ValueError(
-                f"Could not find any inventories for target sets: {self.target_set_nums}"
-            )
+            raise ValueError(f"Could not find any inventories for target sets: {self.target_set_nums}")
 
         target_inventory_ids = target_inventories["id"].unique().tolist()
 
@@ -122,12 +114,8 @@ class DataImporter:
         relevant_color_ids = self.inventory_parts_df["color_id"].unique()
 
         # Filter parts and colors DataFrames
-        self.parts_df = self.parts_df[
-            self.parts_df["part_num"].isin(relevant_part_nums)
-        ].copy()
-        self.colors_df = self.colors_df[
-            self.colors_df["id"].isin(relevant_color_ids)
-        ].copy()
+        self.parts_df = self.parts_df[self.parts_df["part_num"].isin(relevant_part_nums)].copy()
+        self.colors_df = self.colors_df[self.colors_df["id"].isin(relevant_color_ids)].copy()
 
         print("Data filtering complete!")
 
@@ -148,9 +136,7 @@ class DataImporter:
             # Use pandas' .to_sql() to write DataFrames to tables.
             # `if_exists='replace'` will drop the table first if it exists.
             # `index=False` prevents pandas from writing the DataFrame index as a column.
-            self.inventory_parts_df.to_sql(
-                "inventory_parts", conn, if_exists="replace", index=False
-            )
+            self.inventory_parts_df.to_sql("inventory_parts", conn, if_exists="replace", index=False)
 
             # --- SCHEMA EVOLUTION: Add the image_folder_name column ---
             # We add the new column to the DataFrame before writing it to SQL.
@@ -164,9 +150,7 @@ class DataImporter:
             self.colors_df.to_sql("colors", conn, if_exists="replace", index=False)
 
             # We also save the filtered sets table for context
-            filtered_sets_df = self.sets_df[
-                self.sets_df["set_num"].isin(self.target_set_nums)
-            ].copy()
+            filtered_sets_df = self.sets_df[self.sets_df["set_num"].isin(self.target_set_nums)].copy()
             filtered_sets_df.to_sql("sets", conn, if_exists="replace", index=False)
 
             print("Database and tables created successfully.")

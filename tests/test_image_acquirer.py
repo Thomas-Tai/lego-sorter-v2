@@ -14,15 +14,13 @@ def test_db(tmp_path: Path) -> Path:
     cursor = conn.cursor()
 
     # Create the necessary table
-    cursor.execute(
-        """
+    cursor.execute("""
         CREATE TABLE parts (
             part_num TEXT PRIMARY KEY,
             name TEXT,
             image_folder_name TEXT
         )
-    """
-    )
+    """)
 
     # Insert test data
     # One part has been shot, two have not.
@@ -79,9 +77,7 @@ def test_get_parts_to_shoot_returns_only_unshot_parts(acquirer_instance: ImageAc
     assert "3003" in part_nums
 
 
-def test_create_image_directory_creates_folder_and_returns_path(
-    acquirer_instance: ImageAcquirer, tmp_path: Path
-):
+def test_create_image_directory_creates_folder_and_returns_path(acquirer_instance: ImageAcquirer, tmp_path: Path):
     """
     Tests if _create_image_directory method can:
     1. Create a folder named after the part_num inside the base path.
@@ -101,9 +97,7 @@ def test_create_image_directory_creates_folder_and_returns_path(
     assert created_path == expected_path
 
 
-def test_prompt_user_displays_message_and_waits_for_input(
-    acquirer_instance: ImageAcquirer, capsys, monkeypatch
-):
+def test_prompt_user_displays_message_and_waits_for_input(acquirer_instance: ImageAcquirer, capsys, monkeypatch):
     """
     Tests if the _prompt_user method can:
     1. Display the correct prompt message to standard output.
@@ -165,9 +159,7 @@ def test_capture_single_part_routine_happy_path(
     assert len(mock_vision.captured_filepaths) == 6
 
 
-def test_update_database_sets_image_folder_name(
-    acquirer_instance: ImageAcquirer, test_db: Path
-):
+def test_update_database_sets_image_folder_name(acquirer_instance: ImageAcquirer, test_db: Path):
     """
     Tests if the _update_database method correctly updates the
     'image_folder_name' field for a specified part.

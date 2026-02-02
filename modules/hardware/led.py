@@ -2,6 +2,7 @@
 LED Driver Module
 Provides LedDriver class for PWM LED strip control.
 """
+
 import time
 
 try:

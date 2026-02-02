@@ -5,4 +5,4 @@ from .led import LedDriver
 from .camera import CameraDriver
 from .button import ButtonDriver
 
-__all__ = ['MotorDriver', 'LedDriver', 'CameraDriver', 'ButtonDriver']
+__all__ = ["MotorDriver", "LedDriver", "CameraDriver", "ButtonDriver"]

@@ -2,6 +2,7 @@
 Motor Driver Module
 Provides MotorDriver class for 28BYJ-48 stepper motor control.
 """
+
 import time
 
 try:
@@ -23,7 +24,7 @@ except ImportError:
 PIN_MOTOR_IN1 = 27  # Physical Pin 13
 PIN_MOTOR_IN2 = 22  # Physical Pin 15
 PIN_MOTOR_IN3 = 10  # Physical Pin 19
-PIN_MOTOR_IN4 = 9   # Physical Pin 21
+PIN_MOTOR_IN4 = 9  # Physical Pin 21
 
 # Motor Sequence (Half-step 8-phase for smoothness)
 STEP_SEQUENCE = [

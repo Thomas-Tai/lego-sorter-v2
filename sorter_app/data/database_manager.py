@@ -3,6 +3,7 @@ import os
 from dataclasses import dataclass
 from typing import List, Optional, Tuple
 
+
 @dataclass
 class LegoPart:
     part_num: str
@@ -10,6 +11,7 @@ class LegoPart:
     color_id: int
     color_name: str
     image_path: Optional[str] = None
+
 
 class DatabaseManager:
     def __init__(self, db_path: str = "lego_parts.sqlite"):
@@ -24,7 +26,7 @@ class DatabaseManager:
         cursor = conn.cursor()
 
         # Sets table
-        cursor.execute('''
+        cursor.execute("""
             CREATE TABLE IF NOT EXISTS sets (
                 set_num TEXT PRIMARY KEY,
                 name TEXT,
@@ -32,41 +34,41 @@ class DatabaseManager:
                 theme_id INTEGER,
                 num_parts INTEGER
             )
-        ''')
+        """)
 
         # Parts table
         # image_folder_name stores the local path relative to dataset root
-        cursor.execute('''
+        cursor.execute("""
             CREATE TABLE IF NOT EXISTS parts (
                 part_num TEXT PRIMARY KEY,
                 name TEXT,
                 img_url TEXT,
                 image_folder_name TEXT
             )
-        ''')
+        """)
 
         # Colors table
-        cursor.execute('''
+        cursor.execute("""
             CREATE TABLE IF NOT EXISTS colors (
                 id INTEGER PRIMARY KEY,
                 name TEXT,
                 rgb TEXT,
                 is_trans BOOLEAN
             )
-        ''')
+        """)
 
         # Inventories table (Link between Sets and Inventory Parts)
-        cursor.execute('''
+        cursor.execute("""
             CREATE TABLE IF NOT EXISTS inventories (
                 id INTEGER PRIMARY KEY,
                 version INTEGER,
                 set_num TEXT,
                 FOREIGN KEY (set_num) REFERENCES sets (set_num)
             )
-        ''')
+        """)
 
         # Inventory Parts table
-        cursor.execute('''
+        cursor.execute("""
             CREATE TABLE IF NOT EXISTS inventory_parts (
                 inventory_id INTEGER,
                 part_num TEXT,
@@ -78,7 +80,7 @@ class DatabaseManager:
                 FOREIGN KEY (part_num) REFERENCES parts (part_num),
                 FOREIGN KEY (color_id) REFERENCES colors (id)
             )
-        ''')
+        """)
 
         conn.commit()
         conn.close()
@@ -88,7 +90,7 @@ class DatabaseManager:
         Retrieve all distinct parts for a given set.
         Returns list of (part_num, part_name, color_id, color_name, image_folder_name)
         """
-        query = '''
+        query = """
             SELECT DISTINCT p.part_num, p.name, c.id, c.name, p.image_folder_name
             FROM sets s
             JOIN inventories i ON s.set_num = i.set_num
@@ -96,7 +98,7 @@ class DatabaseManager:
             JOIN parts p ON ip.part_num = p.part_num
             JOIN colors c ON ip.color_id = c.id
             WHERE s.set_num = ? AND ip.is_spare = 0
-        '''
+        """
         conn = self._get_connection()
         cursor = conn.cursor()
         cursor.execute(query, (set_num,))
@@ -108,11 +110,14 @@ class DatabaseManager:
         """Update the image_folder_name for a part (marking it as photographed)"""
         conn = self._get_connection()
         cursor = conn.cursor()
-        cursor.execute('''
+        cursor.execute(
+            """
             UPDATE parts
             SET image_folder_name = ?
             WHERE part_num = ?
-        ''', (folder_name, part_num))
+        """,
+            (folder_name, part_num),
+        )
         conn.commit()
         conn.close()
 

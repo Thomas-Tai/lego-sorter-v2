@@ -2,8 +2,10 @@
 Button Driver Module
 Provides ButtonDriver class for physical button input on Raspberry Pi.
 """
+
 try:
     from gpiozero import Button
+
     HAS_GPIO = True
 except ImportError:
     Button = None
@@ -15,13 +17,13 @@ class ButtonDriver:
 
     def __init__(self, pin: int = 17):
         """Initialize button on specified GPIO pin.
-        
+
         Args:
             pin: BCM GPIO pin number (default 17 = physical pin 11)
         """
         self.pin = pin
         self.button = None
-        
+
         if HAS_GPIO:
             try:
                 self.button = Button(pin, pull_up=True, bounce_time=0.1)
@@ -30,7 +32,7 @@ class ButtonDriver:
 
     def wait_for_press(self, timeout: float = None) -> bool:
         """Wait for button press. Returns True if pressed, False if timeout.
-        
+
         Args:
             timeout: Maximum seconds to wait (None = wait forever)
         """

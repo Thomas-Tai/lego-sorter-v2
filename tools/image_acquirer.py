@@ -59,12 +59,10 @@ class ImageAcquirer:
         """
         conn = sqlite3.connect(self._db_path)
         cursor = conn.cursor()
-        cursor.execute(
-            """
+        cursor.execute("""
             SELECT part_num, name FROM parts
             WHERE image_folder_name IS NULL
-        """
-        )
+        """)
         parts = cursor.fetchall()
         conn.close()
         logger.info("Found %d parts to shoot", len(parts))
