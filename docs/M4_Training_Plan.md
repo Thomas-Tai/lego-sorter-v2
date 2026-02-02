@@ -1,433 +1,366 @@
 # M4: Model Training Plan
 
 ## Objective
-Train a LEGO part classifier that accurately identifies **part ID** and **color ID** from real camera captures, using all available data sources (legacy, b200c, real).
+Train a LEGO part classifier that accurately identifies **part ID** and **color ID** from real camera captures, using all available data sources (Legacy, B200C, Real).
 
 ---
 
-## Phase 1: Data Preparation
+## Architecture Overview
 
-### 1.1 Data Inventory
-
-| Source | Images | Parts | Colors | Quality |
-|--------|--------|-------|--------|---------|
-| Legacy | 82,354 | ~6,000 | 251 | Rendered, white BG |
-| B200C | 10,000 | ~200 | None (9999) | Synthetic 3D, multi-angle |
-| Real | 1,687 | ~50 | 22 | Camera captures |
-
-### 1.2 Data Filtering
-
-Focus on the **200 target parts** for the sorter:
-
-```python
-# Filter database to target parts only
-target_parts = load_target_parts("config/target_parts.txt")  # 200 parts
-
-filtered_data = {
-    "legacy": [],   # ~200 parts × ~40 colors = ~8,000 images
-    "b200c": [],    # ~200 parts × 50 views = ~10,000 images
-    "real": []      # Need to capture more
-}
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    Three-Stage Training Pipeline                         │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│  Stage 1: Synthetic Pre-training     Stage 2: Real Fine-tuning          │
+│  ┌─────────────────────────────┐     ┌─────────────────────────────┐    │
+│  │ Legacy (82k) + B200C (40k)  │     │ Real Captures (1.7k)        │    │
+│  │           ↓                 │     │           ↓                 │    │
+│  │ EfficientNetB0 (ImageNet)   │ ──> │ backbone_synthetic.pth      │    │
+│  │           ↓                 │     │           ↓                 │    │
+│  │ Learn LEGO shape features   │     │ Adapt to real camera domain │    │
+│  │           ↓                 │     │           ↓                 │    │
+│  │ backbone_synthetic.pth      │     │ backbone_final.pth          │    │
+│  └─────────────────────────────┘     └─────────────────────────────┘    │
+│                                                   │                      │
+│                                                   ▼                      │
+│                              ┌─────────────────────────────────────┐    │
+│                              │ Stage 3: Deployment Options         │    │
+│                              ├─────────────────────────────────────┤    │
+│                              │                                     │    │
+│                              │  Option A: Classifier Head (Demo)   │    │
+│                              │  - 105 classes for set 45345-1      │    │
+│                              │  - Accuracy: >95%                   │    │
+│                              │                                     │    │
+│                              │  Option B: Vector Space (Expansion) │    │
+│                              │  - Re-extract embeddings            │    │
+│                              │  - Add new sets without retraining  │    │
+│                              │  - Accuracy: ~90%                   │    │
+│                              │                                     │    │
+│                              └─────────────────────────────────────┘    │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 1.3 Real Capture Requirements
+---
 
-**Current gap**: Only ~50 parts have real captures. Need 150+ more parts.
+## Data Sources
 
-| Priority | Parts | Images Needed | Effort |
-|----------|-------|---------------|--------|
-| High | 50 most common | 8 angles × 3 colors = 1,200 | 2-3 days |
-| Medium | 100 common | 8 angles × 2 colors = 1,600 | 3-4 days |
-| Low | 50 rare | 8 angles × 1 color = 400 | 1-2 days |
+### Available Data
 
-**Total**: ~3,200 new real captures needed.
+| Source | Images | Classes | Size | Color Info | Domain |
+|--------|--------|---------|------|------------|--------|
+| **Legacy** | 82,354 | ~6,000 | 224×224 | ✅ Yes | Rendered |
+| **B200C** | 800,000 | 200 | 64×64 | ❌ No | Synthetic 3D |
+| **Real** | 1,687 | ~50 | 640×480 | ✅ Yes | Camera |
 
-### 1.4 Data Augmentation Pipeline
+### B200C 64×64 Handling
 
 ```python
-train_augmentation = A.Compose([
-    # Geometric
-    A.RandomRotate90(p=0.5),
-    A.HorizontalFlip(p=0.5),
-    A.ShiftScaleRotate(shift_limit=0.1, scale_limit=0.2, rotate_limit=15, p=0.5),
+# B200C images are 64×64, need upscaling to 224×224
 
-    # Color/Lighting (bridge domain gap)
-    A.RandomBrightnessContrast(brightness_limit=0.2, contrast_limit=0.2, p=0.5),
-    A.HueSaturationValue(hue_shift_limit=10, sat_shift_limit=20, val_shift_limit=20, p=0.3),
-    A.GaussNoise(var_limit=(10, 50), p=0.3),
-    A.GaussianBlur(blur_limit=(3, 5), p=0.2),
-
-    # Background variation
-    A.CoarseDropout(max_holes=8, max_height=20, max_width=20, p=0.3),
-
-    # Normalize
-    A.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-    ToTensorV2()
+# Recommended: Lanczos interpolation + blur augmentation
+transform_b200c = A.Compose([
+    A.Resize(224, 224, interpolation=cv2.INTER_LANCZOS4),
+    A.OneOf([
+        A.GaussianBlur(blur_limit=(3, 7)),
+        A.MotionBlur(blur_limit=(3, 7)),
+    ], p=0.3),  # Match blur characteristics of upscaled images
 ])
+
+# Alternative: Real-ESRGAN for quality upscaling (slower, better quality)
 ```
 
-### 1.5 Train/Val/Test Split
+### Data Sampling Strategy
 
-```
-Real captures:    70% train / 15% val / 15% test
-Legacy + B200C:   100% train (domain adaptation)
+```python
+training_data = {
+    "legacy": 82000,      # All legacy images
+    "b200c": 40000,       # Sample 200 views per part (200 × 200 = 40k)
+    "real": 1700,         # All real captures (weighted 3x)
+}
 
-Strategy: Validate and test ONLY on real captures to measure real-world performance.
+# Total: ~124k images for Stage 1
+# Stage 2: Real only with heavy augmentation
 ```
 
 ---
 
-## Phase 2: Model Architecture
+## Stage 1: Synthetic Pre-training
 
-### 2.1 Option A: Single Multi-Task Model (Recommended)
+### Objective
+Learn LEGO part shape and structure features from synthetic data.
 
-```
-Input (224×224×3)
-       ↓
-┌──────────────────────────┐
-│  EfficientNetB0          │
-│  (pretrained ImageNet)   │
-│  Freeze first 50% layers │
-└──────────────────────────┘
-       ↓
-    Features (1280-dim)
-       ↓
-┌──────────────────────────┐
-│  Shared FC (512)         │
-│  BatchNorm + ReLU        │
-│  Dropout(0.3)            │
-└──────────────────────────┘
-       ↓
-   ┌───┴───┐
-   ↓       ↓
-┌──────┐ ┌──────┐
-│Part  │ │Color │
-│Head  │ │Head  │
-│(200) │ │(50)  │
-└──────┘ └──────┘
-   ↓       ↓
-Part ID  Color ID
-```
+### Configuration
 
-### 2.2 Option B: Two Separate Models
+```yaml
+# config/stage1_synthetic.yaml
+model:
+  backbone: efficientnet_b0
+  pretrained: imagenet
+  num_classes: 200  # B200C has 200 classes
 
-```
-Model 1: Part Classifier (200 classes)
-- Use ALL data (legacy + b200c + real)
-- Color-agnostic (grayscale augmentation)
+data:
+  sources:
+    - legacy: 82000
+    - b200c: 40000  # Sampled
+  batch_size: 64
+  image_size: 224
 
-Model 2: Color Classifier (50 classes)
-- Use only legacy + real (have color labels)
-- Part-agnostic (train on crops)
+training:
+  epochs: 15
+  optimizer: AdamW
+  learning_rate: 1e-4
+  weight_decay: 0.01
+  scheduler: CosineAnnealingLR
+
+augmentation:
+  - RandomRotate90
+  - HorizontalFlip
+  - RandomBrightnessContrast
+  - GaussianBlur  # Important for B200C upscaled images
+  - CoarseDropout
 ```
 
-### 2.3 Model Code
+### Code
 
 ```python
+# scripts/training/stage1_synthetic.py
+
 import torch
 import torch.nn as nn
 from torchvision import models
+import albumentations as A
 
-class LegoClassifier(nn.Module):
-    def __init__(self, num_parts=200, num_colors=50):
+class Stage1Model(nn.Module):
+    def __init__(self, num_classes=200):
+        super().__init__()
+        self.backbone = models.efficientnet_b0(pretrained=True)
+        in_features = self.backbone.classifier[1].in_features
+        self.backbone.classifier = nn.Sequential(
+            nn.Dropout(0.3),
+            nn.Linear(in_features, num_classes)
+        )
+
+    def forward(self, x):
+        return self.backbone(x)
+
+    def get_features(self, x):
+        """Extract features before classifier"""
+        x = self.backbone.features(x)
+        x = self.backbone.avgpool(x)
+        return x.flatten(1)
+
+def train_stage1():
+    model = Stage1Model(num_classes=200)
+
+    # Freeze early layers initially
+    for param in model.backbone.features[:5].parameters():
+        param.requires_grad = False
+
+    # Training loop...
+    # Save: checkpoints/backbone_synthetic.pth
+```
+
+### Output
+- `checkpoints/backbone_synthetic.pth` - Backbone trained on synthetic data
+
+---
+
+## Stage 2: Real Fine-tuning
+
+### Objective
+Adapt the backbone to real camera domain (lighting, noise, colors).
+
+### Configuration
+
+```yaml
+# config/stage2_real.yaml
+model:
+  backbone: efficientnet_b0
+  pretrained: checkpoints/backbone_synthetic.pth  # From Stage 1
+  num_classes: 105  # Set 45345-1 parts
+
+data:
+  sources:
+    - real: 1700
+  batch_size: 32
+  image_size: 224
+  sample_weight: 3.0  # Weight real samples higher
+
+training:
+  epochs: 30
+  optimizer: AdamW
+  learning_rate: 5e-5  # Lower LR for fine-tuning
+  weight_decay: 0.01
+  scheduler: CosineAnnealingWarmRestarts
+
+augmentation:
+  # Aggressive augmentation for small dataset
+  - RandomRotate90
+  - HorizontalFlip
+  - ShiftScaleRotate(shift=0.1, scale=0.2, rotate=15)
+  - RandomBrightnessContrast(brightness=0.3, contrast=0.3)
+  - HueSaturationValue(hue=10, sat=30, val=30)
+  - GaussNoise(var_limit=50)
+  - CoarseDropout(max_holes=8)
+```
+
+### Multi-Task Architecture
+
+```python
+# scripts/training/stage2_real.py
+
+class Stage2Model(nn.Module):
+    def __init__(self, num_parts=105, num_colors=50):
         super().__init__()
 
-        # Backbone
-        self.backbone = models.efficientnet_b0(pretrained=True)
-        backbone_out = self.backbone.classifier[1].in_features
-        self.backbone.classifier = nn.Identity()
+        # Load Stage 1 backbone
+        stage1 = Stage1Model(num_classes=200)
+        stage1.load_state_dict(torch.load('checkpoints/backbone_synthetic.pth'))
 
-        # Shared layers
+        # Extract backbone (remove classifier)
+        self.backbone = stage1.backbone.features
+        self.avgpool = stage1.backbone.avgpool
+
+        # New heads for fine-tuning
         self.shared = nn.Sequential(
-            nn.Linear(backbone_out, 512),
+            nn.Linear(1280, 512),
             nn.BatchNorm1d(512),
             nn.ReLU(),
             nn.Dropout(0.3)
         )
 
-        # Task heads
         self.part_head = nn.Linear(512, num_parts)
         self.color_head = nn.Linear(512, num_colors)
 
     def forward(self, x):
-        features = self.backbone(x)
-        shared = self.shared(features)
+        x = self.backbone(x)
+        x = self.avgpool(x)
+        x = x.flatten(1)
 
+        shared = self.shared(x)
         part_logits = self.part_head(shared)
         color_logits = self.color_head(shared)
 
         return part_logits, color_logits
+
+    def get_embedding(self, x):
+        """Extract 1280-dim embedding for Vector Space"""
+        x = self.backbone(x)
+        x = self.avgpool(x)
+        x = x.flatten(1)
+        return nn.functional.normalize(x, dim=1)
 ```
+
+### Output
+- `checkpoints/backbone_final.pth` - Production-ready backbone
+- `checkpoints/classifier_45345.pth` - Classifier head for set 45345-1
 
 ---
 
-## Phase 3: Training Strategy
+## Stage 3: Deployment Options
 
-### 3.1 Loss Function
-
-```python
-class MultiTaskLoss(nn.Module):
-    def __init__(self, part_weight=1.0, color_weight=0.5):
-        super().__init__()
-        self.part_loss = nn.CrossEntropyLoss(label_smoothing=0.1)
-        self.color_loss = nn.CrossEntropyLoss(label_smoothing=0.1)
-        self.part_weight = part_weight
-        self.color_weight = color_weight
-
-    def forward(self, part_pred, color_pred, part_target, color_target):
-        loss_part = self.part_loss(part_pred, part_target)
-
-        # Only compute color loss for samples with known color (not 9999)
-        valid_color_mask = color_target != COLOR_UNKNOWN_IDX
-        if valid_color_mask.sum() > 0:
-            loss_color = self.color_loss(
-                color_pred[valid_color_mask],
-                color_target[valid_color_mask]
-            )
-        else:
-            loss_color = 0.0
-
-        return self.part_weight * loss_part + self.color_weight * loss_color
-```
-
-### 3.2 Domain Adaptation Strategy
-
-To bridge the gap between synthetic (legacy/b200c) and real captures:
+### Option A: Classifier (Demo - Set 45345-1)
 
 ```python
-# Source weighting: Real captures get higher weight
-sample_weights = {
-    "real": 3.0,    # 3x weight for real captures
-    "legacy": 1.0,
-    "b200c": 1.0
-}
+# For known set with fixed parts
+class LegoClassifier:
+    def __init__(self, model_path, part_mapping):
+        self.model = Stage2Model(num_parts=105, num_colors=50)
+        self.model.load_state_dict(torch.load(model_path))
+        self.model.eval()
+        self.part_mapping = part_mapping
 
-# Curriculum learning: Start with synthetic, gradually add real
-epoch_schedule = {
-    0-5:   {"real": 0.2, "legacy": 0.4, "b200c": 0.4},  # Mostly synthetic
-    5-15:  {"real": 0.5, "legacy": 0.25, "b200c": 0.25}, # Balanced
-    15-30: {"real": 0.7, "legacy": 0.15, "b200c": 0.15}  # Mostly real
-}
-```
-
-### 3.3 Training Hyperparameters
-
-```yaml
-# config/training.yaml
-model:
-  backbone: efficientnet_b0
-  pretrained: true
-  freeze_backbone_ratio: 0.5
-
-training:
-  epochs: 30
-  batch_size: 64
-  optimizer: AdamW
-  learning_rate: 1e-4
-  weight_decay: 0.01
-  scheduler: CosineAnnealingLR
-  warmup_epochs: 3
-
-augmentation:
-  train: strong
-  val: none
-
-early_stopping:
-  patience: 5
-  monitor: val_part_accuracy
-```
-
-### 3.4 Training Script Outline
-
-```python
-# scripts/training/train_classifier.py
-
-def train():
-    # 1. Load data
-    train_dataset = LegoDataset(split="train", augment=True)
-    val_dataset = LegoDataset(split="val", augment=False)
-
-    # 2. Create model
-    model = LegoClassifier(num_parts=200, num_colors=50)
-    model = model.to(device)
-
-    # 3. Setup training
-    optimizer = torch.optim.AdamW(model.parameters(), lr=1e-4)
-    scheduler = CosineAnnealingLR(optimizer, T_max=30)
-    criterion = MultiTaskLoss()
-
-    # 4. Training loop
-    for epoch in range(30):
-        # Train
-        model.train()
-        for batch in train_loader:
-            images, part_labels, color_labels = batch
-            part_pred, color_pred = model(images)
-            loss = criterion(part_pred, color_pred, part_labels, color_labels)
-
-            optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
-
-        # Validate
-        model.eval()
-        val_metrics = evaluate(model, val_loader)
-
-        # Save best
-        if val_metrics["part_acc"] > best_acc:
-            torch.save(model.state_dict(), "checkpoints/best_model.pth")
-
-        scheduler.step()
-```
-
----
-
-## Phase 4: Evaluation
-
-### 4.1 Metrics
-
-| Metric | Target | Description |
-|--------|--------|-------------|
-| Part Top-1 Accuracy | >90% | Correct part in top prediction |
-| Part Top-5 Accuracy | >98% | Correct part in top 5 |
-| Color Accuracy | >85% | Correct color (when known) |
-| Inference Time | <100ms | Per image on Pi |
-
-### 4.2 Evaluation Script
-
-```python
-# scripts/training/evaluate.py
-
-def evaluate(model, test_loader):
-    model.eval()
-
-    part_correct = 0
-    part_top5_correct = 0
-    color_correct = 0
-    color_total = 0
-    total = 0
-
-    with torch.no_grad():
-        for images, part_labels, color_labels in test_loader:
-            part_pred, color_pred = model(images)
-
-            # Part accuracy
-            _, part_predicted = part_pred.max(1)
-            part_correct += (part_predicted == part_labels).sum().item()
-
-            # Part top-5
-            _, part_top5 = part_pred.topk(5, dim=1)
-            part_top5_correct += (part_top5 == part_labels.unsqueeze(1)).any(1).sum().item()
-
-            # Color accuracy (only valid colors)
-            valid_mask = color_labels != COLOR_UNKNOWN_IDX
-            if valid_mask.sum() > 0:
-                _, color_predicted = color_pred[valid_mask].max(1)
-                color_correct += (color_predicted == color_labels[valid_mask]).sum().item()
-                color_total += valid_mask.sum().item()
-
-            total += part_labels.size(0)
-
-    return {
-        "part_acc": part_correct / total,
-        "part_top5_acc": part_top5_correct / total,
-        "color_acc": color_correct / color_total if color_total > 0 else 0
-    }
-```
-
-### 4.3 Confusion Analysis
-
-```python
-# Identify commonly confused parts
-def confusion_analysis(model, test_loader):
-    # Build confusion matrix
-    confusion = np.zeros((num_parts, num_parts))
-
-    for images, part_labels, _ in test_loader:
-        part_pred, _ = model(images)
-        _, predicted = part_pred.max(1)
-
-        for true, pred in zip(part_labels, predicted):
-            confusion[true][pred] += 1
-
-    # Find top confused pairs
-    confused_pairs = []
-    for i in range(num_parts):
-        for j in range(num_parts):
-            if i != j and confusion[i][j] > 5:
-                confused_pairs.append((
-                    part_names[i],
-                    part_names[j],
-                    confusion[i][j]
-                ))
-
-    return sorted(confused_pairs, key=lambda x: -x[2])
-```
-
----
-
-## Phase 5: Deployment
-
-### 5.1 Model Export
-
-```python
-# Export to ONNX for Pi deployment
-def export_onnx(model, output_path):
-    model.eval()
-    dummy_input = torch.randn(1, 3, 224, 224)
-
-    torch.onnx.export(
-        model,
-        dummy_input,
-        output_path,
-        input_names=["image"],
-        output_names=["part_logits", "color_logits"],
-        dynamic_axes={"image": {0: "batch"}},
-        opset_version=11
-    )
-```
-
-### 5.2 Inference API Update
-
-```python
-# sorter_app/services/inference_api.py (updated)
-
-class ClassifierLoader:
-    def __init__(self):
-        self.session = ort.InferenceSession("models/lego_classifier.onnx")
-        self.part_names = load_json("config/part_names.json")
-        self.color_names = load_json("config/color_names.json")
-
-    def predict(self, image_bytes):
-        # Preprocess
-        img = preprocess_image(image_bytes)
-
-        # Inference
-        part_logits, color_logits = self.session.run(
-            None, {"image": img}
-        )
-
-        # Decode
-        part_idx = np.argmax(part_logits)
-        color_idx = np.argmax(color_logits)
+    def predict(self, image):
+        with torch.no_grad():
+            part_logits, color_logits = self.model(image)
+            part_idx = part_logits.argmax(1)
+            color_idx = color_logits.argmax(1)
 
         return {
-            "part_id": self.part_names[part_idx],
-            "part_confidence": softmax(part_logits)[part_idx],
-            "color_id": self.color_names[color_idx],
-            "color_confidence": softmax(color_logits)[color_idx]
+            "part_id": self.part_mapping[part_idx],
+            "color_id": self.color_mapping[color_idx],
+            "confidence": softmax(part_logits).max()
         }
 ```
 
-### 5.3 Pi Deployment
+### Option B: Vector Space (Expansion)
 
-```bash
-# On Raspberry Pi
-pip install onnxruntime  # CPU version for Pi
+```python
+# For adding new sets without retraining
+class LegoVectorSearch:
+    def __init__(self, model_path, embeddings_path):
+        self.model = Stage2Model(num_parts=105, num_colors=50)
+        self.model.load_state_dict(torch.load(model_path))
+        self.model.eval()
 
-# Copy model
-scp models/lego_classifier.onnx pi@lego-sorter.local:~/lego-sorter-v2/models/
+        # Load pre-computed embeddings
+        with open(embeddings_path, 'rb') as f:
+            self.db = pickle.load(f)
+
+        self.vectors = np.array([v['embedding'] for v in self.db.values()])
+        self.keys = list(self.db.keys())
+
+    def predict(self, image):
+        with torch.no_grad():
+            query_emb = self.model.get_embedding(image)
+
+        # Cosine similarity search
+        similarities = np.dot(self.vectors, query_emb.numpy())
+        top_idx = np.argsort(similarities)[::-1][:5]
+
+        return [
+            {"part_id": self.db[self.keys[idx]]["part_id"],
+             "confidence": similarities[idx]}
+            for idx in top_idx
+        ]
+
+# Re-extract embeddings with trained backbone
+def rebuild_embeddings(model, image_dir, output_path):
+    """Use trained backbone to create better embeddings"""
+    embeddings = {}
+    for img_path in glob(f"{image_dir}/**/*.jpg"):
+        img = load_and_preprocess(img_path)
+        emb = model.get_embedding(img)
+        embeddings[img_path] = {
+            "embedding": emb.numpy(),
+            "part_id": extract_part_id(img_path),
+            "color_id": extract_color_id(img_path),
+        }
+
+    with open(output_path, 'wb') as f:
+        pickle.dump(embeddings, f)
 ```
+
+---
+
+## Pi Deployment Analysis
+
+### Memory Requirements
+
+| Component | Size |
+|-----------|------|
+| EfficientNetB0 (ONNX, fp16) | ~10 MB |
+| Rembg U2-Net | ~170 MB |
+| Vector DB (94k, fp16) | ~230 MB |
+| Python Runtime | ~200 MB |
+| **Total** | **~610 MB** |
+
+### Inference Time (Pi 5)
+
+| Mode | Rembg | Model | Search | Total |
+|------|-------|-------|--------|-------|
+| **Pi-Only** | 2-4s | 0.3-0.5s | 0.05s | **2.5-5s** |
+| **Pi+PC** | - | 0.1s (GPU) | 0.05s | **~0.5s** |
+
+### Deployment Decision
+
+| Scenario | Recommendation |
+|----------|----------------|
+| Demo / Offline | Pi-Only (slower but independent) |
+| Production | Pi+PC (faster, scalable) |
+| Low latency required | Pi+PC with GPU |
 
 ---
 
@@ -435,16 +368,11 @@ scp models/lego_classifier.onnx pi@lego-sorter.local:~/lego-sorter-v2/models/
 
 | Week | Phase | Tasks |
 |------|-------|-------|
-| 1 | Data Prep | Filter 200 parts, setup augmentation pipeline |
-| 1-2 | Capture | Photograph 50 high-priority parts (1,200 images) |
-| 2 | Training Setup | Model code, loss functions, data loaders |
-| 2-3 | Training V1 | Initial training, hyperparameter tuning |
-| 3 | Evaluation | Confusion analysis, identify weak points |
-| 3-4 | Capture More | Add 100 medium-priority parts |
-| 4 | Training V2 | Retrain with expanded dataset |
-| 4 | Deployment | Export ONNX, update inference API, test on Pi |
-
-**Total: ~4 weeks**
+| **1** | Stage 1 | Prepare B200C sampler, train synthetic backbone |
+| **2** | Stage 2 | Fine-tune on real captures, evaluate |
+| **3** | Stage 3A | Train classifier head for 45345-1, test accuracy |
+| **3** | Stage 3B | Re-extract embeddings with trained backbone |
+| **4** | Deploy | Export ONNX, test on Pi, production setup |
 
 ---
 
@@ -453,27 +381,47 @@ scp models/lego_classifier.onnx pi@lego-sorter.local:~/lego-sorter-v2/models/
 ```
 scripts/
 ├── training/
-│   ├── prepare_dataset.py     # Filter & organize training data
-│   ├── train_classifier.py    # Main training script
-│   ├── evaluate.py            # Evaluation metrics
-│   └── export_onnx.py         # Model export
+│   ├── stage1_synthetic.py    # Synthetic pre-training
+│   ├── stage2_real.py         # Real fine-tuning
+│   ├── export_onnx.py         # Model export
+│   └── rebuild_embeddings.py  # Re-extract with trained backbone
+│
+├── data/
+│   ├── prepare_b200c.py       # Sample & upscale B200C
+│   └── prepare_dataset.py     # Create train/val/test splits
 
 config/
-├── training.yaml              # Hyperparameters
-├── target_parts.json          # 200 target part IDs
-├── part_names.json            # Part ID → index mapping
-└── color_names.json           # Color ID → index mapping
+├── stage1_synthetic.yaml
+├── stage2_real.yaml
+└── part_mappings/
+    └── 45345-1.json           # Part ID → index mapping
 
 models/
-└── lego_classifier.onnx       # Exported model
+├── backbone_synthetic.pth     # Stage 1 output
+├── backbone_final.pth         # Stage 2 output
+├── classifier_45345.onnx      # Exported classifier
+└── trained_embeddings.pkl     # Re-extracted embeddings
 ```
 
 ---
 
 ## Success Criteria
 
-- [ ] Part Top-1 Accuracy > 90% on real test set
-- [ ] Part Top-5 Accuracy > 98% on real test set
-- [ ] Color Accuracy > 85% on real test set
-- [ ] Inference < 100ms on Raspberry Pi
-- [ ] Works reliably for all 200 target parts
+| Metric | Target | Validation |
+|--------|--------|------------|
+| Part Top-1 (Classifier) | >95% | Real test set |
+| Part Top-5 (Classifier) | >99% | Real test set |
+| Part Top-1 (Vector) | >90% | Real test set |
+| Color Accuracy | >85% | Real test set (where applicable) |
+| Inference Time (Pi) | <5s | Pi 5 standalone |
+| Inference Time (Pi+PC) | <1s | Pi capture + PC inference |
+
+---
+
+## Key Insights
+
+1. **B200C 64×64 is usable** - Lanczos upscale + blur augmentation bridges the gap
+2. **Three-stage training** - Synthetic pre-train → Real fine-tune → Deploy
+3. **Dual deployment** - Classifier for accuracy, Vector for expansion
+4. **Trained backbone benefits both** - Better features improve vector search too
+5. **Pi-standalone is possible** - 2.5-5s latency, suitable for demo/offline use
