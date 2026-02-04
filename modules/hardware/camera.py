@@ -41,9 +41,9 @@ class CameraDriver:
             # Set camera properties for better image quality
             self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)  # Minimize buffer
 
-            # Commented out high-res to ensure basic compatibility first
-            # self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
-            # self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+            # Set resolution to match training images (1280x720)
+            self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+            self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
 
             # Enable autofocus (if supported by camera)
             self.cap.set(cv2.CAP_PROP_AUTOFOCUS, 1)

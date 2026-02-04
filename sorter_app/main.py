@@ -10,6 +10,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from sorter_app.services.config_service import ConfigService
 from sorter_app.services.api_client import APIClient
 from modules.hardware.camera import CameraDriver
+from modules.hardware.led import LedDriver
 
 # Setup logging
 logging.basicConfig(
@@ -51,12 +52,19 @@ def main():
                 return
             captured = True
         else:
-            # Initialize camera using CameraDriver (has MJPG + buffer fixes for C920)
+            # Initialize hardware
             camera = CameraDriver(camera_index=config_service.camera_index)
+            led = LedDriver()
             try:
                 if not camera.open():
                     logger.error("Failed to open camera. Check connection.")
                     return
+
+                # Turn on LED for consistent lighting (same as acquisition)
+                led.on()
+                logger.info("LED on for consistent lighting")
+                time.sleep(0.3)  # Allow LED to stabilize
+
                 logger.info("Capturing image...")
                 # Ensure directory exists
                 Path(image_path).parent.mkdir(parents=True, exist_ok=True)
@@ -67,6 +75,8 @@ def main():
                     logger.error("Failed to capture image.")
             finally:
                 camera.close()
+                led.cleanup()
+                logger.info("LED off, hardware cleanup complete")
 
         if captured:
             logger.info("Sending to inference API...")

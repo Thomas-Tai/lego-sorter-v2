@@ -1,0 +1,191 @@
+# Stage 2: Real Fine-tuning Configuration
+# Fine-tune the synthetic pre-trained backbone on real camera captures
+# Target: >95% accuracy on real LEGO parts
+
+# =============================================================================
+# Model Configuration
+# =============================================================================
+model:
+  backbone: efficientnet_b0
+  pretrained_backbone: "checkpoints/stage1/backbone_synthetic.pth"
+
+  # Multi-task heads
+  part_head:
+    num_classes: null  # Auto-detected from data
+    dropout: 0.4
+  color_head:
+    num_classes: null  # Auto-detected from data
+    dropout: 0.4
+
+  # Feature extraction
+  embedding_dim: 1280
+  freeze_backbone_epochs: 2  # Freeze backbone for first N epochs
+
+# =============================================================================
+# Data Configuration
+# =============================================================================
+data:
+  # Real captures directory (part_id/color_id/images)
+  # Laptop path:
+  real_captures_dir: "C:/D/WorkSpace/[Local]_Station/01_Heavy_Assets/LegoSorterProject/Data/images/raw_clean"
+
+  # Image settings
+  image_size: 224
+  num_workers: 4
+  pin_memory: true
+
+  # Train/val split
+  val_split: 0.2  # 20% for validation (small dataset needs more validation)
+  seed: 42
+
+  # Minimum samples per class
+  min_samples_per_part: 3
+  min_samples_per_color: 5
+
+# =============================================================================
+# Training Configuration
+# =============================================================================
+training:
+  batch_size: 32  # Smaller batch for small dataset
+  epochs: 30  # More epochs for fine-tuning
+
+  # Optimizer (lower LR for fine-tuning)
+  optimizer: AdamW
+  learning_rate: 5.0e-5  # Lower than Stage 1
+  backbone_lr_multiplier: 0.1  # Even lower LR for backbone
+  weight_decay: 0.02
+
+  # Scheduler
+  scheduler: CosineAnnealingWarmRestarts
+  scheduler_params:
+    T_0: 10  # Restart every 10 epochs
+    T_mult: 1
+    eta_min: 1.0e-6
+
+  # Loss weights
+  loss_weights:
+    part: 1.0
+    color: 0.5  # Color is secondary task
+
+  # Label smoothing
+  label_smoothing: 0.1
+
+  # Mixed precision
+  mixed_precision: true
+  gradient_clip: 1.0
+
+  # Early stopping
+  early_stopping:
+    enabled: true
+    patience: 8
+    min_delta: 0.001
+    monitor: val_part_acc
+
+  # Checkpointing
+  checkpoint:
+    save_best: true
+    save_last: true
+    save_every: 10
+
+# =============================================================================
+# Augmentation Configuration (Heavy for small dataset)
+# =============================================================================
+augmentation:
+  train:
+    # Geometric
+    - name: RandomRotate90
+      p: 0.5
+    - name: HorizontalFlip
+      p: 0.5
+    - name: VerticalFlip
+      p: 0.5
+    - name: Affine
+      scale: [0.85, 1.15]
+      rotate: [-20, 20]
+      shear: [-10, 10]
+      p: 0.7
+    - name: Perspective
+      scale: [0.05, 0.1]
+      p: 0.3
+
+    # Color/Lighting (realistic variations)
+    - name: RandomBrightnessContrast
+      brightness_limit: 0.3
+      contrast_limit: 0.3
+      p: 0.7
+    - name: HueSaturationValue
+      hue_shift_limit: 15
+      sat_shift_limit: 30
+      val_shift_limit: 30
+      p: 0.5
+    - name: ColorJitter
+      brightness: 0.2
+      contrast: 0.2
+      saturation: 0.2
+      hue: 0.1
+      p: 0.3
+
+    # Noise/Blur (camera artifacts)
+    - name: OneOf
+      transforms:
+        - name: GaussianBlur
+          blur_limit: [3, 5]
+        - name: MotionBlur
+          blur_limit: [3, 5]
+        - name: MedianBlur
+          blur_limit: [3, 5]
+      p: 0.3
+    - name: GaussNoise
+      p: 0.2
+    - name: ISONoise
+      p: 0.2
+
+    # Occlusion/Dropout
+    - name: CoarseDropout
+      p: 0.3
+
+    # Normalize
+    - name: Normalize
+      mean: [0.485, 0.456, 0.406]
+      std: [0.229, 0.224, 0.225]
+    - name: ToTensorV2
+
+  val:
+    - name: Normalize
+      mean: [0.485, 0.456, 0.406]
+      std: [0.229, 0.224, 0.225]
+    - name: ToTensorV2
+
+# =============================================================================
+# Output Configuration
+# =============================================================================
+output:
+  checkpoint_dir: "checkpoints/stage2"
+  best_model_name: "backbone_final.pth"
+  log_dir: "logs/stage2"
+  tensorboard: true
+  save_metrics: true
+  metrics_file: "stage2_metrics.json"
+
+  # Save class mappings for inference
+  save_mappings: true
+  part_mapping_file: "part_mapping.json"
+  color_mapping_file: "color_mapping.json"
+
+# =============================================================================
+# Hardware Configuration
+# =============================================================================
+hardware:
+  device: auto
+  gpu_id: 0
+  gradient_checkpointing: false
+  empty_cache_freq: 50
+
+# =============================================================================
+# Logging Configuration
+# =============================================================================
+logging:
+  level: INFO
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  log_to_file: true
+  log_file: "logs/stage2/training.log"

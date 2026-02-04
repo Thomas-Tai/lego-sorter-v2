@@ -8,7 +8,7 @@ Deliver a commercial-grade, open-source LEGO sorting machine that serves as a co
 
 ## ✨ Features
 
-- **Automated Sorting:** Sorts LEGO Spike Essential small parts with >85% accuracy target.
+- **Automated Sorting:** Sorts LEGO Spike Essential small parts with **96% accuracy** (M4 Classifier).
 - **Modular Architecture:** Independent modules for database, hardware, acquisition, and training.
 - **Dual-Pi Setup:** Separate Pis for data collection (Acquirer) and sorting (Sorter).
 - **Rebrickable Integration:** Imports official LEGO parts data for accurate identification.
@@ -47,6 +47,11 @@ lego-sorter-v2/
 │       ├── raw_clean/    # Processed (BG Removed) Real images
 │       └── b200c_processed/ # Processed B200C synthetic data
 │       └── manifest.csv  # Image metadata for training
+│
+├── models/               # Trained models
+│   ├── lego_classifier.onnx   # M4 ONNX classifier (94 parts, 22 colors)
+│   ├── part_mapping.json      # Part ID → class index mapping
+│   └── color_mapping.json     # Color ID → class index mapping
 │
 ├── config/               # Configuration files
 ├── tests/                # Unit tests
@@ -176,12 +181,37 @@ data/images/
             └── ... (8 angles)
 ```
 
-### Training (PC)
+### Sorting (Sorter Pi)
+
+1.  **Start Inference API on PC:**
+    ```bash
+    python -m uvicorn sorter_app.services.inference_api:app --host 0.0.0.0 --port 8000
+    ```
+
+2.  **Run sorter on Pi:**
+    ```bash
+    ssh legoSorter
+    cd ~/lego-sorter-v2
+    source venv/bin/activate
+    export LEGO_API_URL=http://<PC_IP>:8000
+    python -m sorter_app.main
+    ```
+
+### M4 Model Training (PC)
+
+The M4 classifier achieves **96% Top-1 accuracy** on real LEGO parts.
+
+-   **Architecture:** EfficientNet-B0 backbone + Part Head (94 classes) + Color Head (22 classes)
+-   **Model:** `models/lego_classifier.onnx` (19 MB)
+-   **Training Guide:** [M4 Desktop Training Guide](docs/M4_Desktop_Training_Guide.md)
 
 ```bash
-python scripts/local/train_model.py
+# Train the model (requires GPU)
+python scripts/training/stage2_real.py --config config/stage2_real.yaml
+
+# Export to ONNX
+python scripts/training/export_onnx.py
 ```
-*(Coming in M4)*
 
 ## 🧪 Development
 
@@ -220,6 +250,7 @@ python -m pytest
 - [SSH Setup Guide](docs/ssh_setup.md)
 - [Photo Capture Guide](docs/photo_capture_guide.md)
 - [M4 Training Plan](docs/M4_Training_Plan.md) - Classifier training for set 45345-1
+- [M4 Desktop Training Guide](docs/M4_Desktop_Training_Guide.md) - Step-by-step training on Windows
 
 ### Debug Tools
 - `scripts/local/debug_classification.py` - Diagnose classification issues

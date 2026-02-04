@@ -362,6 +362,26 @@ def rebuild_embeddings(model, image_dir, output_path):
 | Production | Pi+PC (faster, scalable) |
 | Low latency required | Pi+PC with GPU |
 
+### Rembg Optimization (Future)
+
+**Bottleneck**: Rembg (U2-Net) accounts for 80% of Pi inference time (2-4s out of 2.5-5s total).
+
+**Observation**: Pi turntable captures have relatively clean, consistent backgrounds compared to arbitrary images.
+
+**Potential Optimizations:**
+
+| Approach | Inference Time | Trade-off |
+|----------|----------------|-----------|
+| U2-Net (current) | 2-4s | Best quality, slowest |
+| HSV-based removal | ~0.1s | Fast, requires tuned thresholds |
+| No removal | 0s | Fastest, requires training with turntable BG |
+| MobileNet segmentation | ~0.3s | Balanced speed/quality |
+
+**Recommendation for M4:**
+- Stage 2 fine-tuning: Include both clean (rembg) and turntable backgrounds in training data
+- This makes the model robust to background variations
+- At deployment: Test accuracy without rembg; if acceptable (>90%), skip it for **~0.5s Pi-only inference**
+
 ---
 
 ## Timeline
@@ -425,3 +445,4 @@ models/
 3. **Dual deployment** - Classifier for accuracy, Vector for expansion
 4. **Trained backbone benefits both** - Better features improve vector search too
 5. **Pi-standalone is possible** - 2.5-5s latency, suitable for demo/offline use
+6. **Rembg is the bottleneck** - Pi turntable has clean background; may skip rembg for ~0.5s inference
