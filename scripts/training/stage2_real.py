@@ -132,7 +132,9 @@ class Stage2Model(nn.Module):
                 backbone_state[key] = value
 
         # Load backbone weights
-        missing, unexpected = self.backbone.load_state_dict(backbone_state, strict=False)
+        missing, unexpected = self.backbone.load_state_dict(
+            backbone_state, strict=False
+        )
         logger.info(f"Loaded pretrained backbone: {len(backbone_state)} weights")
         if missing:
             logger.warning(f"Missing keys: {missing[:5]}...")
@@ -258,10 +260,14 @@ class RealCapturesDataset(Dataset):
 
         # Filter parts and colors with minimum samples
         valid_parts = {p for p, c in part_counts.items() if c >= min_samples_per_part}
-        valid_colors = {c for c, n in color_counts.items() if n >= min_samples_per_color}
+        valid_colors = {
+            c for c, n in color_counts.items() if n >= min_samples_per_color
+        }
 
         logger.info(f"Parts with >={min_samples_per_part} samples: {len(valid_parts)}")
-        logger.info(f"Colors with >={min_samples_per_color} samples: {len(valid_colors)}")
+        logger.info(
+            f"Colors with >={min_samples_per_color} samples: {len(valid_colors)}"
+        )
 
         # Build mappings
         for idx, part_id in enumerate(sorted(valid_parts)):
@@ -313,7 +319,9 @@ class RealCapturesDataset(Dataset):
         # Resize if needed
         if image.shape[:2] != (self.image_size, self.image_size):
             image = cv2.resize(
-                image, (self.image_size, self.image_size), interpolation=cv2.INTER_LANCZOS4
+                image,
+                (self.image_size, self.image_size),
+                interpolation=cv2.INTER_LANCZOS4,
             )
 
         # Apply transforms
@@ -386,7 +394,8 @@ def train_epoch(
                 part_loss = part_criterion(part_logits, part_labels)
                 color_loss = color_criterion(color_logits, color_labels)
                 loss = (
-                    loss_weights["part"] * part_loss + loss_weights["color"] * color_loss
+                    loss_weights["part"] * part_loss
+                    + loss_weights["color"] * color_loss
                 )
 
             scaler.scale(loss).backward()
@@ -475,7 +484,9 @@ def validate(
 
         # Part Top-3 accuracy
         _, part_top3 = part_logits.topk(3, dim=1)
-        part_top3_correct = part_top3.eq(part_labels.view(-1, 1)).any(dim=1).sum().item()
+        part_top3_correct = (
+            part_top3.eq(part_labels.view(-1, 1)).any(dim=1).sum().item()
+        )
         part_top3_acc = part_top3_correct / part_labels.size(0)
 
         # Color accuracy
@@ -562,7 +573,9 @@ def train_stage2(config: dict) -> dict:
     # Create datasets
     logger.info("Loading real captures dataset...")
     real_dir = data_config.get("real_captures_dir", "data/images/raw_clean")
-    real_path = Path(real_dir) if Path(real_dir).is_absolute() else PROJECT_ROOT / real_dir
+    real_path = (
+        Path(real_dir) if Path(real_dir).is_absolute() else PROJECT_ROOT / real_dir
+    )
 
     train_dataset = RealCapturesDataset(
         root_dir=real_path,
@@ -774,7 +787,9 @@ def train_stage2(config: dict) -> dict:
             writer.add_scalar("Loss/val", val_metrics["loss"], epoch)
             writer.add_scalar("Accuracy/train_part", train_metrics["part_acc"], epoch)
             writer.add_scalar("Accuracy/val_part", val_metrics["part_acc"], epoch)
-            writer.add_scalar("Accuracy/val_part_top3", val_metrics["part_top3_acc"], epoch)
+            writer.add_scalar(
+                "Accuracy/val_part_top3", val_metrics["part_top3_acc"], epoch
+            )
             writer.add_scalar("Accuracy/train_color", train_metrics["color_acc"], epoch)
             writer.add_scalar("Accuracy/val_color", val_metrics["color_acc"], epoch)
             writer.add_scalar("LR", current_lr, epoch)
@@ -830,7 +845,9 @@ def train_stage2(config: dict) -> dict:
 
     # Save metrics
     metrics["total_time_seconds"] = total_time
-    metrics_path = metrics_dir / output_config.get("metrics_file", "stage2_metrics.json")
+    metrics_path = metrics_dir / output_config.get(
+        "metrics_file", "stage2_metrics.json"
+    )
     with open(metrics_path, "w") as f:
         metrics_serializable = {k: v for k, v in metrics.items() if k != "config"}
         json.dump(metrics_serializable, f, indent=2)

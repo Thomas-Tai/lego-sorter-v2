@@ -17,7 +17,9 @@ from rembg import remove as rembg_remove
 import io
 
 # Setup paths
-PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+PROJECT_ROOT = os.path.dirname(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+)
 sys.path.append(PROJECT_ROOT)
 
 # Configuration
@@ -51,7 +53,13 @@ def load_database():
         source = entry.get("source", "legacy")
 
         if part_id == "3001":
-            entries_3001.append({"key": key, "source": source, "color_id": entry.get("color_id", "unknown")})
+            entries_3001.append(
+                {
+                    "key": key,
+                    "source": source,
+                    "color_id": entry.get("color_id", "unknown"),
+                }
+            )
             sources[source] = sources.get(source, 0) + 1
 
     print(f"\nPart 3001 entries: {len(entries_3001)}")
@@ -68,7 +76,10 @@ def load_database():
     print(f"\nSearching for 'upn0389pr0005'...")
     upn_entries = []
     for key, entry in db.items():
-        if "upn0389pr0005" in key.lower() or entry.get("part_id", "") == "upn0389pr0005":
+        if (
+            "upn0389pr0005" in key.lower()
+            or entry.get("part_id", "") == "upn0389pr0005"
+        ):
             upn_entries.append({"key": key, "entry": entry})
 
     if upn_entries:
@@ -180,8 +191,14 @@ def ground_truth_test(db, model):
         key = db_keys[idx]
         entry = db[key]
         part_id = entry.get("part_id", "unknown")
-        marker = " <-- SELF" if key == test_key else (" <-- 3001" if part_id == "3001" else "")
-        print(f"  {rank+1:2}. [{sims[idx]:.4f}] {part_id:15} ({entry.get('source', 'legacy'):8}){marker}")
+        marker = (
+            " <-- SELF"
+            if key == test_key
+            else (" <-- 3001" if part_id == "3001" else "")
+        )
+        print(
+            f"  {rank+1:2}. [{sims[idx]:.4f}] {part_id:15} ({entry.get('source', 'legacy'):8}){marker}"
+        )
 
 
 def extended_similarity_search(db, model, image_bytes_with_rembg):
@@ -223,7 +240,9 @@ def extended_similarity_search(db, model, image_bytes_with_rembg):
 
         # Show top 15 + any 3001
         if rank < 15 or part_id == "3001":
-            print(f"  {rank+1:2}. [{sims[idx]:.4f}] Part: {part_id:15} Src: {source:8} Key: {key[:50]}{marker}")
+            print(
+                f"  {rank+1:2}. [{sims[idx]:.4f}] Part: {part_id:15} Src: {source:8} Key: {key[:50]}{marker}"
+            )
 
     if found_3001_rank:
         print(f"\n*** 3001 first appears at rank: {found_3001_rank} ***")
@@ -256,12 +275,14 @@ def ab_test_background_removal(db, model, original_bytes):
         for idx in top_idx:
             key = db_keys[idx]
             entry = db[key]
-            results.append({
-                "rank": len(results) + 1,
-                "score": sims[idx],
-                "part_id": entry.get("part_id", "unknown"),
-                "source": entry.get("source", "legacy"),
-            })
+            results.append(
+                {
+                    "rank": len(results) + 1,
+                    "score": sims[idx],
+                    "part_id": entry.get("part_id", "unknown"),
+                    "source": entry.get("source", "legacy"),
+                }
+            )
         return results
 
     # Test A: WITH background removal
@@ -277,7 +298,9 @@ def ab_test_background_removal(db, model, original_bytes):
             marker = " <-- TARGET"
             if found_3001_with is None:
                 found_3001_with = m["rank"]
-        print(f"  {m['rank']:2}. [{m['score']:.4f}] {m['part_id']:15} ({m['source']}){marker}")
+        print(
+            f"  {m['rank']:2}. [{m['score']:.4f}] {m['part_id']:15} ({m['source']}){marker}"
+        )
 
     # Test B: WITHOUT background removal
     print("\n[B] WITHOUT Background Removal:")
@@ -291,19 +314,29 @@ def ab_test_background_removal(db, model, original_bytes):
             marker = " <-- TARGET"
             if found_3001_without is None:
                 found_3001_without = m["rank"]
-        print(f"  {m['rank']:2}. [{m['score']:.4f}] {m['part_id']:15} ({m['source']}){marker}")
+        print(
+            f"  {m['rank']:2}. [{m['score']:.4f}] {m['part_id']:15} ({m['source']}){marker}"
+        )
 
     # Compare
     cosine_sim = np.dot(emb_with, emb_without)
     print(f"\nEmbedding Similarity (A vs B): {cosine_sim:.4f}")
 
-    print(f"\n3001 Rank WITH rembg: {found_3001_with if found_3001_with else 'Not in top 10'}")
-    print(f"3001 Rank WITHOUT rembg: {found_3001_without if found_3001_without else 'Not in top 10'}")
+    print(
+        f"\n3001 Rank WITH rembg: {found_3001_with if found_3001_with else 'Not in top 10'}"
+    )
+    print(
+        f"3001 Rank WITHOUT rembg: {found_3001_without if found_3001_without else 'Not in top 10'}"
+    )
 
-    if found_3001_without and (not found_3001_with or found_3001_without < found_3001_with):
+    if found_3001_without and (
+        not found_3001_with or found_3001_without < found_3001_with
+    ):
         print("\n*** FINDING: Better results WITHOUT background removal! ***")
         print("    Recommendation: Tune rembg or use hybrid HSV removal")
-    elif found_3001_with and (not found_3001_without or found_3001_with < found_3001_without):
+    elif found_3001_with and (
+        not found_3001_without or found_3001_with < found_3001_without
+    ):
         print("\n*** FINDING: Better results WITH background removal ***")
         print("    Issue may be database coverage, not background removal")
 

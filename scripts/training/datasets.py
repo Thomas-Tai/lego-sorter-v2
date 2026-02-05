@@ -21,7 +21,6 @@ import torch
 from torch.utils.data import Dataset
 from sklearn.model_selection import train_test_split
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -37,10 +36,12 @@ def create_transforms(transform_config: list) -> A.Compose:
     """
     if not transform_config:
         # Default minimal transform
-        return A.Compose([
-            A.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
-            ToTensorV2(),
-        ])
+        return A.Compose(
+            [
+                A.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+                ToTensorV2(),
+            ]
+        )
 
     transforms = []
     for t_config in transform_config:
@@ -104,7 +105,9 @@ class LegacyDataset(Dataset):
             logger.warning(f"Legacy directory not found: {self.root_dir}")
             return
 
-        image_files = list(self.root_dir.glob("*.jpg")) + list(self.root_dir.glob("*.png"))
+        image_files = list(self.root_dir.glob("*.jpg")) + list(
+            self.root_dir.glob("*.png")
+        )
         logger.info(f"Found {len(image_files)} legacy images")
 
         # Group by part_id (ignore color for Stage 1)
@@ -136,7 +139,9 @@ class LegacyDataset(Dataset):
             indices = rng.choice(len(self.samples), size=max_samples, replace=False)
             self.samples = [self.samples[i] for i in indices]
 
-        logger.info(f"Legacy dataset: {len(self.samples)} samples, {len(self.part_to_idx)} classes")
+        logger.info(
+            f"Legacy dataset: {len(self.samples)} samples, {len(self.part_to_idx)} classes"
+        )
 
     def __len__(self) -> int:
         return len(self.samples)
@@ -154,7 +159,11 @@ class LegacyDataset(Dataset):
 
         # Resize if needed
         if image.shape[:2] != (self.image_size, self.image_size):
-            image = cv2.resize(image, (self.image_size, self.image_size), interpolation=cv2.INTER_LANCZOS4)
+            image = cv2.resize(
+                image,
+                (self.image_size, self.image_size),
+                interpolation=cv2.INTER_LANCZOS4,
+            )
 
         # Apply transforms
         if self.transform:
@@ -229,7 +238,9 @@ class B200CDataset(Dataset):
             indices = rng.choice(len(self.samples), size=max_samples, replace=False)
             self.samples = [self.samples[i] for i in indices]
 
-        logger.info(f"B200C dataset: {len(self.samples)} samples, {len(self.part_to_idx)} classes")
+        logger.info(
+            f"B200C dataset: {len(self.samples)} samples, {len(self.part_to_idx)} classes"
+        )
 
     def __len__(self) -> int:
         return len(self.samples)
@@ -246,7 +257,11 @@ class B200CDataset(Dataset):
 
         # Resize if needed (B200C processed should already be 224x224)
         if image.shape[:2] != (self.image_size, self.image_size):
-            image = cv2.resize(image, (self.image_size, self.image_size), interpolation=cv2.INTER_LANCZOS4)
+            image = cv2.resize(
+                image,
+                (self.image_size, self.image_size),
+                interpolation=cv2.INTER_LANCZOS4,
+            )
 
         # Apply transforms
         if self.transform:
@@ -336,7 +351,9 @@ class SyntheticDataset(Dataset):
         """Load B200C samples and build class mapping."""
         samples = []
 
-        part_dirs = sorted([d for d in root_dir.iterdir() if d.is_dir()], key=lambda x: x.name)
+        part_dirs = sorted(
+            [d for d in root_dir.iterdir() if d.is_dir()], key=lambda x: x.name
+        )
 
         # Build class mapping from B200C parts
         for idx, part_dir in enumerate(part_dirs):
@@ -408,7 +425,11 @@ class SyntheticDataset(Dataset):
 
         # Resize if needed
         if image.shape[:2] != (self.image_size, self.image_size):
-            image = cv2.resize(image, (self.image_size, self.image_size), interpolation=cv2.INTER_LANCZOS4)
+            image = cv2.resize(
+                image,
+                (self.image_size, self.image_size),
+                interpolation=cv2.INTER_LANCZOS4,
+            )
 
         # Apply transforms
         if self.transform:
@@ -502,13 +523,15 @@ class RealCapturesDataset(Dataset):
 
                 for img_path in images:
                     if part_id in self.part_to_idx and color_id in self.color_to_idx:
-                        self.samples.append((
-                            img_path,
-                            self.part_to_idx[part_id],
-                            self.color_to_idx[color_id],
-                            part_id,
-                            color_id,
-                        ))
+                        self.samples.append(
+                            (
+                                img_path,
+                                self.part_to_idx[part_id],
+                                self.color_to_idx[color_id],
+                                part_id,
+                                color_id,
+                            )
+                        )
 
         logger.info(
             f"Real captures: {len(self.samples)} samples, "
@@ -530,7 +553,11 @@ class RealCapturesDataset(Dataset):
 
         # Resize if needed
         if image.shape[:2] != (self.image_size, self.image_size):
-            image = cv2.resize(image, (self.image_size, self.image_size), interpolation=cv2.INTER_LANCZOS4)
+            image = cv2.resize(
+                image,
+                (self.image_size, self.image_size),
+                interpolation=cv2.INTER_LANCZOS4,
+            )
 
         # Apply transforms
         if self.transform:

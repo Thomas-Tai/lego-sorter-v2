@@ -21,8 +21,11 @@ from rembg import remove as rembg_remove, new_session
 import io
 
 # Configuration
-B200C_ROOT = r"C:\D\WorkSpace\[Local]_Station\01_Heavy_Assets\LegoSorterProject\Data\datasets\B200C LEGO Classification Dataset\64"
-OUTPUT_DIR = r"C:\D\WorkSpace\[Local]_Station\01_Heavy_Assets\LegoSorterProject\Data\images\b200c_processed"
+HEAVY_ASSETS_ROOT = r"C:\D\WorkSpace\[Local]_Station\01_Heavy_Assets\LegoSorterProject"
+B200C_ROOT = os.path.join(
+    HEAVY_ASSETS_ROOT, "Data", "datasets", "B200C LEGO Classification Dataset", "64"
+)
+OUTPUT_DIR = os.path.join(HEAVY_ASSETS_ROOT, "Data", "images", "b200c_processed")
 OUTPUT_SIZE = (224, 224)
 BACKGROUND_COLOR = (255, 255, 255)  # White background
 

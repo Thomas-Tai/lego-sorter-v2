@@ -175,14 +175,16 @@ def evaluate(
             correct = pred_idx == true_idx
             top3_correct = true_idx in top3_idx
 
-            predictions.append({
-                "path": str(img_path),
-                "true_part": true_part,
-                "pred_part": pred_part,
-                "confidence": confidence,
-                "correct": correct,
-                "top3_correct": top3_correct,
-            })
+            predictions.append(
+                {
+                    "path": str(img_path),
+                    "true_part": true_part,
+                    "pred_part": pred_part,
+                    "confidence": confidence,
+                    "correct": correct,
+                    "top3_correct": top3_correct,
+                }
+            )
 
             part_stats[true_part]["total"] += 1
             if correct:
@@ -284,7 +286,9 @@ def main():
     parser.add_argument(
         "--data-dir",
         type=Path,
-        default=Path("C:/D/WorkSpace/[Local]_Station/01_Heavy_Assets/LegoSorterProject/Data/images/raw_clean"),
+        default=Path(
+            "C:/D/WorkSpace/[Local]_Station/01_Heavy_Assets/LegoSorterProject/Data/images/raw_clean"
+        ),
     )
     parser.add_argument("--output", type=Path, default=None)
 
@@ -351,14 +355,20 @@ def main():
     # Save results
     output_path = args.output or (checkpoint_dir / "evaluation_results.json")
     with open(output_path, "w") as f:
-        json.dump({
-            "accuracy": results["accuracy"],
-            "top3_accuracy": results["top3_accuracy"],
-            "total_samples": results["total_samples"],
-            "confusion_pairs": [(list(k), v) for k, v in results["confusion_pairs"]],
-            "worst_parts": [(p, s) for p, s in results["worst_parts"]],
-            "recommendations": recommendations,
-        }, f, indent=2)
+        json.dump(
+            {
+                "accuracy": results["accuracy"],
+                "top3_accuracy": results["top3_accuracy"],
+                "total_samples": results["total_samples"],
+                "confusion_pairs": [
+                    (list(k), v) for k, v in results["confusion_pairs"]
+                ],
+                "worst_parts": [(p, s) for p, s in results["worst_parts"]],
+                "recommendations": recommendations,
+            },
+            f,
+            indent=2,
+        )
     logger.info(f"\nResults saved to {output_path}")
 
 

@@ -29,14 +29,16 @@ class CameraDriver:
             return False
 
         # Use CAP_DSHOW on Windows to avoid MSMF errors/black screens
-        if os.name == 'nt':
+        if os.name == "nt":
             self.cap = cv2.VideoCapture(self.camera_index, cv2.CAP_DSHOW)
         else:
             self.cap = cv2.VideoCapture(self.camera_index)
 
         if self.cap.isOpened():
             # FORCE MJPG (Fixes static/corrupted frames on many USB cameras)
-            self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'))
+            self.cap.set(
+                cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc("M", "J", "P", "G")
+            )
 
             # Set camera properties for better image quality
             self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)  # Minimize buffer

@@ -182,7 +182,7 @@ class ClassifierInference:
         results = []
         for rank, part_idx in enumerate(top_part_indices):
             part_id = self.part_mapping.get(part_idx, str(part_idx))
-            color_id = self.color_mapping.get(top_color_idx, str(top_color_idx))
+            color_id = self.color_mapping.get(int(top_color_idx), str(top_color_idx))
 
             results.append(
                 {
@@ -287,6 +287,11 @@ class EmbeddingInference:
         query_embedding = self.model.predict(img_batch, verbose=0)[0]
 
         # Search
+        assert (
+            self.vectors is not None
+            and self.filenames is not None
+            and self.db is not None
+        )
         similarities = np.dot(self.vectors, query_embedding)
 
         # Apply source weighting
@@ -422,7 +427,7 @@ class ModelLoader:
             info["num_colors"] = len(self.classifier.color_mapping)
             info["model_path"] = str(self.classifier.model_path)
         elif self.inference_mode == "embedding" and self.embedding:
-            info["database_size"] = len(self.embedding.db)
+            info["database_size"] = len(self.embedding.db or {})
             info["database_path"] = str(self.embedding.db_path)
 
         return info
