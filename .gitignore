@@ -16,27 +16,37 @@ envs/
 .vscode/
 
 # Data - We only track the structure, not the large files
-# 確保 large data files and databases are not committed.
 data/images/
 data/processed/*.sqlite
 data/temp_real_data/
 data/raw
 data/embeddings/
+data/db/*.sqlite
+data/captures/
+data/debug_output/
+data/integration_test_output.sqlite
 
-# Models
+# Models (track ONNX + mappings, exclude training formats)
 models/*.keras
 models/*.h5
+
+# Training artifacts (large binary files)
+checkpoints/
+logs/
+metrics/
 
 # OS-specific
 .DS_Store
 Thumbs.db
+
 # Agent workflow configs
 .agent/
 
-# Project Management Docs (Private)
+# Project Management Docs (local-only, not in repo)
 Project_Manage/
-# Project_Manage/ (Uncommented to allow tracking of documentation)
-data/db/*.sqlite
+
+# Misc
 *.log
 test_error.txt
 validation_report.txt
+nul

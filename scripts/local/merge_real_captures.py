@@ -63,7 +63,8 @@ def scan_real_captures(raw_dir):
             if not os.path.isdir(color_path):
                 continue
             for filename in os.listdir(color_path):
-                if filename.lower().endswith((".jpg", ".jpeg", ".png")):
+                # Only use PNGs (which are the clean, background-removed versions)
+                if filename.lower().endswith(".png"):
                     full_path = os.path.join(color_path, filename)
                     images.append((full_path, part_id, color_id, filename))
     return images
@@ -81,7 +82,9 @@ def main():
         project_root, "data", "embeddings", "hybrid_embeddings.pkl"
     )
     # Use background-removed images from raw_clean/ (M3.5)
-    raw_dir = os.path.join(project_root, "data", "images", "raw_clean")
+    # Use background-removed images from Heavy Assets
+    # raw_dir = os.path.join(project_root, "data", "images", "raw_clean")
+    raw_dir = r"C:\D\WorkSpace\[Local]_Station\01_Heavy_Assets\LegoSorterProject\Data\images\raw_clean"
 
     # 1. Load Legacy DB
     print(f"Loading Legacy DB from {legacy_db_path}...")

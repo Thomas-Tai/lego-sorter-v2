@@ -1,0 +1,148 @@
+# Stage 1: Synthetic Pre-training Configuration (Desktop - RTX 3060)
+# For i7-13700F + RTX 3060 (12GB VRAM)
+
+# =============================================================================
+# Model Configuration
+# =============================================================================
+model:
+  backbone: efficientnet_b0
+  pretrained: imagenet
+  num_classes: 200
+  embedding_dim: 1280
+  dropout: 0.3
+  freeze_layers: 5
+
+# =============================================================================
+# Data Configuration (UPDATE PATHS FOR YOUR DESKTOP)
+# =============================================================================
+data:
+  # === MODIFY THESE PATHS ===
+  legacy_dir: "D:/LegoSorter/data/legacy_images"
+  b200c_dir: "D:/LegoSorter/data/b200c_processed"
+  b200c_processed_dir: "D:/LegoSorter/data/b200c_processed"
+
+  output_dir: "D:/LegoSorter/data/training/stage1"
+
+  sources:
+    legacy:
+      enabled: true  # Legacy images copied to D:/LegoSorter/data/legacy_images
+      max_samples: 82354
+      weight: 1.0
+    b200c:
+      enabled: true
+      max_samples: 40000  # 200 parts × 200 views in subdirectories
+      views_per_part: 200
+      weight: 1.0
+
+  image_size: 224
+  num_workers: 8  # i7-13700F has many cores
+  pin_memory: true
+
+  val_split: 0.1
+  seed: 42
+
+# =============================================================================
+# Training Configuration (Optimized for RTX 3060)
+# =============================================================================
+training:
+  batch_size: 64  # RTX 3060 12GB can handle this
+  epochs: 15
+
+  optimizer: AdamW
+  learning_rate: 1.0e-4
+  weight_decay: 0.01
+
+  scheduler: CosineAnnealingLR
+  scheduler_params:
+    T_max: 15
+    eta_min: 1.0e-6
+
+  mixed_precision: true  # FP16 for faster training
+  gradient_clip: 1.0
+
+  early_stopping:
+    enabled: true
+    patience: 5
+    min_delta: 0.001
+    monitor: val_loss
+
+  checkpoint:
+    save_best: true
+    save_last: true
+    save_every: 5
+
+# =============================================================================
+# Augmentation Configuration
+# =============================================================================
+augmentation:
+  train:
+    - name: RandomRotate90
+      p: 0.5
+    - name: HorizontalFlip
+      p: 0.5
+    - name: VerticalFlip
+      p: 0.3
+    - name: ShiftScaleRotate
+      shift_limit: 0.1
+      scale_limit: 0.15
+      rotate_limit: 15
+      p: 0.5
+    - name: RandomBrightnessContrast
+      brightness_limit: 0.2
+      contrast_limit: 0.2
+      p: 0.5
+    - name: HueSaturationValue
+      hue_shift_limit: 10
+      sat_shift_limit: 20
+      val_shift_limit: 20
+      p: 0.3
+    - name: OneOf
+      transforms:
+        - name: GaussianBlur
+          blur_limit: [3, 7]
+        - name: MotionBlur
+          blur_limit: [3, 7]
+      p: 0.3
+    - name: GaussNoise
+      p: 0.2
+    - name: CoarseDropout
+      p: 0.3
+    - name: Normalize
+      mean: [0.485, 0.456, 0.406]
+      std: [0.229, 0.224, 0.225]
+    - name: ToTensorV2
+
+  val:
+    - name: Normalize
+      mean: [0.485, 0.456, 0.406]
+      std: [0.229, 0.224, 0.225]
+    - name: ToTensorV2
+
+# =============================================================================
+# Output Configuration (UPDATE PATHS)
+# =============================================================================
+output:
+  checkpoint_dir: "D:/LegoSorter/checkpoints/stage1"
+  best_model_name: "backbone_synthetic.pth"
+  log_dir: "D:/LegoSorter/logs/stage1"
+  tensorboard: true
+  save_metrics: true
+  metrics_file: "stage1_metrics.json"
+
+# =============================================================================
+# Hardware Configuration
+# =============================================================================
+hardware:
+  device: auto  # Will auto-detect RTX 3060
+  gpu_id: 0
+  gradient_checkpointing: false
+  empty_cache_freq: 100
+
+# =============================================================================
+# Logging Configuration
+# =============================================================================
+logging:
+  level: INFO
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  log_to_file: true
+  log_file: "D:/LegoSorter/logs/stage1/training.log"

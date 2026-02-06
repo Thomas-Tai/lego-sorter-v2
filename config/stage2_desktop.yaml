@@ -1,0 +1,148 @@
+# Stage 2: Real Fine-tuning Configuration (Desktop - RTX 3060)
+# Fine-tune the synthetic pre-trained backbone on real camera captures
+
+# =============================================================================
+# Model Configuration
+# =============================================================================
+model:
+  backbone: efficientnet_b0
+  pretrained_backbone: "D:/LegoSorter/checkpoints/stage1/backbone_synthetic.pth"
+
+  part_head:
+    num_classes: null
+    dropout: 0.3  # Reduced dropout
+  color_head:
+    num_classes: null
+    dropout: 0.3
+
+  embedding_dim: 1280
+  freeze_backbone_epochs: 3  # Freeze longer
+
+# =============================================================================
+# Data Configuration
+# =============================================================================
+data:
+  # Desktop path - need to copy raw_clean folder
+  real_captures_dir: "D:/LegoSorter/data/raw_clean"
+
+  image_size: 224
+  num_workers: 8
+  pin_memory: true
+
+  val_split: 0.15  # Smaller val split = more training data
+  seed: 42
+
+  min_samples_per_part: 2  # Lower threshold
+  min_samples_per_color: 3
+
+# =============================================================================
+# Training Configuration (More aggressive for small dataset)
+# =============================================================================
+training:
+  batch_size: 32
+  epochs: 100  # More epochs
+
+  optimizer: AdamW
+  learning_rate: 2.0e-4  # Higher LR
+  backbone_lr_multiplier: 0.2  # Higher backbone LR
+  weight_decay: 0.01
+
+  scheduler: CosineAnnealingWarmRestarts
+  scheduler_params:
+    T_0: 20  # Longer cycle
+    T_mult: 2
+    eta_min: 1.0e-6
+
+  loss_weights:
+    part: 1.0
+    color: 0.3
+
+  label_smoothing: 0.05  # Less smoothing
+
+  mixed_precision: true
+  gradient_clip: 1.0
+
+  early_stopping:
+    enabled: true
+    patience: 20  # Much longer patience
+    min_delta: 0.001
+    monitor: val_part_acc
+
+  checkpoint:
+    save_best: true
+    save_last: true
+    save_every: 20
+
+# =============================================================================
+# Augmentation (Heavy for small dataset)
+# =============================================================================
+augmentation:
+  train:
+    - name: RandomRotate90
+      p: 0.5
+    - name: HorizontalFlip
+      p: 0.5
+    - name: VerticalFlip
+      p: 0.5
+    - name: Affine
+      scale: [0.8, 1.2]
+      rotate: [-30, 30]
+      shear: [-15, 15]
+      p: 0.8
+    - name: RandomBrightnessContrast
+      brightness_limit: 0.3
+      contrast_limit: 0.3
+      p: 0.7
+    - name: HueSaturationValue
+      hue_shift_limit: 15
+      sat_shift_limit: 30
+      val_shift_limit: 30
+      p: 0.5
+    - name: OneOf
+      transforms:
+        - name: GaussianBlur
+          blur_limit: [3, 5]
+        - name: MotionBlur
+          blur_limit: [3, 5]
+      p: 0.3
+    - name: GaussNoise
+      p: 0.2
+    - name: CoarseDropout
+      p: 0.2
+    - name: Normalize
+      mean: [0.485, 0.456, 0.406]
+      std: [0.229, 0.224, 0.225]
+    - name: ToTensorV2
+
+  val:
+    - name: Normalize
+      mean: [0.485, 0.456, 0.406]
+      std: [0.229, 0.224, 0.225]
+    - name: ToTensorV2
+
+# =============================================================================
+# Output Configuration
+# =============================================================================
+output:
+  checkpoint_dir: "D:/LegoSorter/checkpoints/stage2"
+  best_model_name: "backbone_final.pth"
+  log_dir: "D:/LegoSorter/logs/stage2"
+  tensorboard: true
+  save_metrics: true
+  metrics_file: "stage2_metrics.json"
+  save_mappings: true
+
+# =============================================================================
+# Hardware Configuration
+# =============================================================================
+hardware:
+  device: auto
+  gpu_id: 0
+
+# =============================================================================
+# Logging
+# =============================================================================
+logging:
+  level: INFO
+  log_to_file: true
+  log_file: "D:/LegoSorter/logs/stage2/training.log"

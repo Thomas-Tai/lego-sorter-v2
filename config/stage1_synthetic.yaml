@@ -1,0 +1,206 @@
+# Stage 1: Synthetic Pre-training Configuration
+# Train EfficientNetB0 backbone on Legacy + B200C synthetic data
+
+# =============================================================================
+# Model Configuration
+# =============================================================================
+model:
+  backbone: efficientnet_b0
+  pretrained: imagenet
+  num_classes: 200  # B200C has 200 part classes
+  embedding_dim: 1280  # EfficientNetB0 feature dimension
+  dropout: 0.3
+  freeze_layers: 5  # Freeze first N layer blocks initially
+
+# =============================================================================
+# Data Configuration
+# =============================================================================
+data:
+  # Data source paths (Windows paths)
+  legacy_dir: "C:/D/WorkSpace/[Local]_Station/01_Heavy_Assets/lego_inventory_parts_ID_Color"
+  b200c_dir: "C:/D/WorkSpace/[Local]_Station/01_Heavy_Assets/LegoSorterProject/Data/datasets/B200C LEGO Classification Dataset/64"
+  b200c_processed_dir: "C:/D/WorkSpace/[Local]_Station/01_Heavy_Assets/LegoSorterProject/Data/images/b200c_processed"
+
+  # Output paths (relative to project root)
+  output_dir: "data/training/stage1"
+
+  # Sampling configuration
+  sources:
+    legacy:
+      enabled: true
+      max_samples: 82000  # Use all legacy images
+      weight: 1.0  # Sample weight during training
+    b200c:
+      enabled: true
+      max_samples: 40000  # Sample ~200 views per part (200 parts × 200 views)
+      views_per_part: 200  # How many views to sample from each part's 360 views
+      weight: 1.0  # Sample weight during training
+
+  # Image configuration
+  image_size: 224
+  num_workers: 4
+  pin_memory: true
+
+  # Train/Val split
+  val_split: 0.1
+  seed: 42
+
+# =============================================================================
+# Training Configuration
+# =============================================================================
+training:
+  batch_size: 64
+  epochs: 15
+
+  # Optimizer
+  optimizer: AdamW
+  learning_rate: 1.0e-4
+  weight_decay: 0.01
+
+  # Learning rate scheduler
+  scheduler: CosineAnnealingLR
+  scheduler_params:
+    T_max: 15  # Same as epochs
+    eta_min: 1.0e-6
+
+  # Mixed precision training (faster on modern GPUs)
+  mixed_precision: true
+
+  # Gradient clipping
+  gradient_clip: 1.0
+
+  # Early stopping
+  early_stopping:
+    enabled: true
+    patience: 5
+    min_delta: 0.001
+    monitor: val_loss
+
+  # Checkpointing
+  checkpoint:
+    save_best: true
+    save_last: true
+    save_every: 5  # Save every N epochs
+
+# =============================================================================
+# Augmentation Configuration (Albumentations)
+# =============================================================================
+augmentation:
+  train:
+    # Geometric transforms
+    - name: RandomRotate90
+      p: 0.5
+    - name: HorizontalFlip
+      p: 0.5
+    - name: VerticalFlip
+      p: 0.3
+    - name: ShiftScaleRotate
+      shift_limit: 0.1
+      scale_limit: 0.15
+      rotate_limit: 15
+      p: 0.5
+
+    # Color/brightness transforms
+    - name: RandomBrightnessContrast
+      brightness_limit: 0.2
+      contrast_limit: 0.2
+      p: 0.5
+    - name: HueSaturationValue
+      hue_shift_limit: 10
+      sat_shift_limit: 20
+      val_shift_limit: 20
+      p: 0.3
+
+    # Blur (important for B200C upscaled images)
+    - name: OneOf
+      transforms:
+        - name: GaussianBlur
+          blur_limit: [3, 7]
+        - name: MotionBlur
+          blur_limit: [3, 7]
+      p: 0.3
+
+    # Noise and dropout
+    - name: GaussNoise
+      var_limit: [10, 50]
+      p: 0.2
+    - name: CoarseDropout
+      max_holes: 8
+      max_height: 20
+      max_width: 20
+      min_holes: 1
+      min_height: 8
+      min_width: 8
+      fill_value: 255  # White fill for removed background images
+      p: 0.3
+
+    # Normalization (ImageNet stats for EfficientNet)
+    - name: Normalize
+      mean: [0.485, 0.456, 0.406]
+      std: [0.229, 0.224, 0.225]
+    - name: ToTensorV2
+
+  val:
+    # Validation only gets normalization
+    - name: Normalize
+      mean: [0.485, 0.456, 0.406]
+      std: [0.229, 0.224, 0.225]
+    - name: ToTensorV2
+
+# =============================================================================
+# B200C Processing Configuration
+# =============================================================================
+b200c_processing:
+  # Upscaling from 64x64 to 224x224
+  interpolation: LANCZOS  # cv2.INTER_LANCZOS4
+
+  # Background removal (optional, B200C already has clean backgrounds)
+  remove_background: false
+
+  # Sampling strategy
+  sampling:
+    method: uniform  # uniform, random, or first_n
+    views_per_part: 200  # Sample 200 from 360 views per part
+
+  # Processing batch size
+  batch_size: 100
+
+  # Skip already processed
+  skip_existing: true
+
+# =============================================================================
+# Output Configuration
+# =============================================================================
+output:
+  # Model checkpoints
+  checkpoint_dir: "checkpoints/stage1"
+  best_model_name: "backbone_synthetic.pth"
+
+  # Logs
+  log_dir: "logs/stage1"
+  tensorboard: true
+
+  # Metrics
+  save_metrics: true
+  metrics_file: "metrics/stage1_metrics.json"
+
+# =============================================================================
+# Hardware Configuration
+# =============================================================================
+hardware:
+  # GPU settings
+  device: auto  # auto, cuda, cpu
+  gpu_id: 0
+
+  # Memory optimization
+  gradient_checkpointing: false  # Enable for larger batches on limited VRAM
+  empty_cache_freq: 100  # Clear CUDA cache every N batches
+
+# =============================================================================
+# Logging Configuration
+# =============================================================================
+logging:
+  level: INFO
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  log_to_file: true
+  log_file: "logs/stage1/training.log"
