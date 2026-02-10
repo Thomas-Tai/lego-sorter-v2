@@ -1,12 +1,12 @@
 import pytest
 from unittest.mock import MagicMock, patch, call
-from lego_sorter import MotorDriver, STEP_SEQUENCE
+from modules.hardware.motor import MotorDriver, STEP_SEQUENCE
 
 
 class TestMotorDriver:
     @pytest.fixture
     def mock_device_cls(self):
-        with patch("lego_sorter.OutputDevice") as mock:
+        with patch("modules.hardware.motor.OutputDevice") as mock:
             yield mock
 
     def test_init_pins(self, mock_device_cls):

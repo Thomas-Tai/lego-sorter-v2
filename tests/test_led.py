@@ -1,13 +1,13 @@
 import pytest
 from unittest.mock import MagicMock, patch
 import time
-from lego_sorter import LedDriver
+from modules.hardware.led import LedDriver
 
 
 class TestLedDriver:
     @pytest.fixture
     def mock_led_cls(self):
-        with patch("lego_sorter.PWMLED") as mock:
+        with patch("modules.hardware.led.PWMLED") as mock:
             yield mock
 
     def test_init(self, mock_led_cls):
