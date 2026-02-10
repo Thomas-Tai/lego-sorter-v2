@@ -1,7 +1,7 @@
 import pytest
 import sqlite3
 from pathlib import Path
-from tools.image_acquirer import ImageAcquirer
+from acquisition.acquirer import ImageAcquirer
 from tests.mocks.mock_hardware_service import MockHardwareService
 from tests.mocks.mock_vision_service import MockVisionService
 
