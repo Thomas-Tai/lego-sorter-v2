@@ -5,8 +5,8 @@ import logging
 # Add project root to path
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from sorter_app.data.database_manager import DatabaseManager
-from sorter_app.data.data_importer import DataImporter
+from modules.database.manager import DatabaseManager
+from tools.data_importer import DataImporter
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)

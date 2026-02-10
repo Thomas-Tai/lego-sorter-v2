@@ -1,7 +1,7 @@
 import unittest
 import sqlite3
 import os
-from sorter_app.data.database_manager import DatabaseManager
+from modules.database.manager import DatabaseManager
 
 
 class TestDatabaseManager(unittest.TestCase):
