@@ -1,29 +1,30 @@
+"""Sorter application entry point with dependency injection."""
+
+import argparse
 import logging
 import os
-import sys
 import time
 from pathlib import Path
 
-# Add project root to path for imports if needed
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
 from sorter_app.services.config_service import ConfigService
 from sorter_app.services.api_client import APIClient
-from modules.hardware.camera import CameraDriver
-from modules.hardware.led import LedDriver
+from sorter_app.services.hardware_service import RaspberryPiHardwareService
+from sorter_app.services.vision_service import RaspberryPiVisionService
 
-# Setup logging
 logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    level=logging.INFO,
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 )
 logger = logging.getLogger("SorterApp")
 
 
-def main():
-    logger.info("Starting Lego Sorter App...")
+def main() -> None:
+    """Run the sorter application main loop.
 
-    # Parse CLI args
-    import argparse
+    Parses CLI arguments, initializes services via DI, captures an image
+    (or uses a provided test image), and sends it to the inference API.
+    """
+    logger.info("Starting Lego Sorter App...")
 
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -31,11 +32,9 @@ def main():
     )
     args = parser.parse_args()
 
-    # 1. Initialize Services
     config_service = ConfigService()
     api_client = APIClient(base_url=config_service.api_url)
 
-    # 2. Main Logic
     try:
         current_dir = os.path.dirname(os.path.abspath(__file__))
         project_root = os.path.dirname(current_dir)
@@ -45,38 +44,33 @@ def main():
         captured = False
 
         if args.test_image:
-            logger.info(f"Using test image: {args.test_image}")
+            logger.info("Using test image: %s", args.test_image)
             image_path = args.test_image
             if not os.path.exists(image_path):
-                logger.error(f"Test image not found: {image_path}")
+                logger.error("Test image not found: %s", image_path)
                 return
             captured = True
         else:
-            # Initialize hardware
-            camera = CameraDriver(camera_index=config_service.camera_index)
-            led = LedDriver()
+            hardware_service = RaspberryPiHardwareService()
+            vision_service = RaspberryPiVisionService(
+                camera_index=config_service.camera_index,
+            )
             try:
-                if not camera.open():
-                    logger.error("Failed to open camera. Check connection.")
-                    return
-
-                # Turn on LED for consistent lighting (same as acquisition)
-                led.on()
+                hardware_service.set_led_power(True)
                 logger.info("LED on for consistent lighting")
-                time.sleep(0.3)  # Allow LED to stabilize
+                time.sleep(0.3)
 
                 logger.info("Capturing image...")
-                # Ensure directory exists
                 Path(image_path).parent.mkdir(parents=True, exist_ok=True)
-                if camera.capture(image_path):
+                if vision_service.capture_image(image_path):
                     captured = True
-                    logger.info(f"Image captured to {image_path}")
+                    logger.info("Image captured to %s", image_path)
                 else:
                     logger.error("Failed to capture image.")
             finally:
-                camera.close()
-                led.cleanup()
-                logger.info("LED off, hardware cleanup complete")
+                vision_service.release()
+                hardware_service.cleanup()
+                logger.info("Hardware cleanup complete")
 
         if captured:
             logger.info("Sending to inference API...")
@@ -88,17 +82,19 @@ def main():
                     if matches:
                         top_match = matches[0]
                         logger.info(
-                            f"✅ IDENTIFIED: {top_match['part_id']} (Color: {top_match['color_id']})"
+                            "IDENTIFIED: %s (Color: %s)",
+                            top_match["part_id"],
+                            top_match["color_id"],
                         )
-                        logger.info(f"   Confidence: {top_match['confidence']}")
-                        logger.info(f"   Source: {top_match['source']}")
+                        logger.info("   Confidence: %s", top_match["confidence"])
+                        logger.info("   Source: %s", top_match["source"])
                     else:
-                        logger.info("❓ No matches found.")
+                        logger.info("No matches found.")
                 else:
-                    logger.error(f"API Error: {result}")
+                    logger.error("API Error: %s", result)
 
             except IOError as e:
-                logger.error(f"Prediction failed: {e}")
+                logger.error("Prediction failed: %s", e)
 
         else:
             logger.error("Failed to capture image.")
