@@ -1,4 +1,4 @@
-# In sorter_app/services/base_service.py
+"""Abstract base classes for sorter application services."""
 
 from abc import ABC, abstractmethod
 
@@ -74,4 +74,41 @@ class AbstractVisionService(ABC):
         Should be called when the vision service is no longer needed
         to free up the camera device for other processes.
         """
+        pass
+
+
+class AbstractSortingService(ABC):
+    """Abstract base class defining the interface for sorting mechanism services.
+
+    This defines the contract that any sorting implementation must adhere to.
+    Concrete implementations will control the physical sorting mechanism
+    (e.g., servo, stepper, conveyor).
+    """
+
+    @abstractmethod
+    def sort_to_bin(self, bin_id: int) -> None:
+        """Direct a part to the specified sorting bin.
+
+        Args:
+            bin_id: Target bin identifier (0-indexed).
+        """
+        pass
+
+    @abstractmethod
+    def get_bin_count(self) -> int:
+        """Return the number of available sorting bins.
+
+        Returns:
+            Number of bins the mechanism supports.
+        """
+        pass
+
+    @abstractmethod
+    def home(self) -> None:
+        """Return the sorting mechanism to its home position."""
+        pass
+
+    @abstractmethod
+    def cleanup(self) -> None:
+        """Release sorting mechanism resources."""
         pass
