@@ -1,19 +1,22 @@
 import pytest
 from unittest.mock import MagicMock, patch, call
-from lego_sorter import LegoSorter, SorterState
+from sorter_app.controllers.sorter_controller import LegoSorter
+from sorter_app.state_machine import SorterState
 
 
 class TestLegoSorter:
     @pytest.fixture
     def sorter(self):
         # Patch hardware drivers to prevent real hardware access during init
-        with patch("lego_sorter.Button") as mock_btn, patch(
-            "lego_sorter.LedDriver"
-        ) as mock_led, patch("lego_sorter.MotorDriver") as mock_motor:
+        with patch(
+            "sorter_app.controllers.sorter_controller.Button"
+        ) as mock_btn, patch(
+            "sorter_app.controllers.sorter_controller.LedDriver"
+        ) as mock_led, patch(
+            "sorter_app.controllers.sorter_controller.MotorDriver"
+        ) as mock_motor:
 
             sorter = LegoSorter()
-            # Verify mocking
-            print(f"DEBUG: sorter.led type: {type(sorter.led)}")
             assert isinstance(sorter.led, MagicMock), "LedDriver was not mocked!"
             yield sorter
 
@@ -26,15 +29,7 @@ class TestLegoSorter:
         assert sorter.button is not None
 
     def test_workflow_cycle(self, sorter):
-        """Test the full workflow: IDLE -> PREP -> SCAN -> SORT -> DONE -> IDLE"""
-
-        # Test transition IDLE -> PREP (Triggered by button)
-        # Mock button press behavior?
-        # Usually run_cycle() is called or event loop detects trigger.
-        # Let's assume we have a method process_event() or we set state directly for unit testing logic?
-        # Ideally we test trigger.
-
-        # For now, let's test the run_cycle() logic assuming it was triggered
+        """Test the full workflow: IDLE -> RUNNING -> IDLE"""
 
         with patch("time.sleep"):  # skip delays
             sorter.start_cycle()
@@ -44,23 +39,15 @@ class TestLegoSorter:
                 sorter.led.fade_in.call_count == 1
             ), "Expected fade_in to be called once"
 
-            # 2. SCAN: Wait (simulated by sleep inside run_cycle or logic)
-
-            # 3. SORT: Motor Action
+            # SORT: Motor Action
             assert (
                 sorter.motor.run_for.call_count == 1
             ), "Expected motor.run_for to be called once"
 
-            # 4. DONE: LED Fade Out & Cleanup
+            # DONE: LED Fade Out & Cleanup
             assert (
                 sorter.led.fade_out.call_count == 1
             ), "Expected fade_out to be called once"
-            # Note: motor.stop() is called internally by run_for(), but since
-            # MotorDriver is mocked, run_for() doesn't execute real code.
-            # The important thing is that run_for() was called.
-
-            # Return to IDLE
-            assert sorter.state == SorterState.IDLE
 
             # Return to IDLE
             assert sorter.state == SorterState.IDLE
