@@ -11,7 +11,8 @@ import logging
 # Add project root to path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..")))
 
-from modules.database import DatabaseManager, DataImporter
+from modules.database import DatabaseManager
+from tools.data_importer import DataImporter
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
