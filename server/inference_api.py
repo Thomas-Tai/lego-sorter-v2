@@ -14,6 +14,7 @@ Endpoints:
 
 import io
 import json
+import logging
 import os
 import pickle
 from pathlib import Path
@@ -32,6 +33,8 @@ TOP_K = 5
 # The classifier expects clean white-background images as that's what it was trained on.
 ENABLE_BACKGROUND_REMOVAL = True
 BACKGROUND_COLOR = (255, 255, 255)
+
+logger = logging.getLogger(__name__)
 # Test-Time Augmentation (TTA): Run multiple predictions with augmentations and average
 # This improves accuracy by ~5-10% at the cost of 4x inference time
 ENABLE_TTA = False
@@ -80,14 +83,14 @@ class ClassifierInference:
 
         import onnxruntime as ort
 
-        print(f"[Classifier] Loading model: {self.model_path}")
+        logger.info("Loading model: %s", self.model_path)
 
         # Load ONNX model
         providers = ["CPUExecutionProvider"]
         try:
             if "CUDAExecutionProvider" in ort.get_available_providers():
                 providers.insert(0, "CUDAExecutionProvider")
-                print("[Classifier] Using CUDA acceleration")
+                logger.info("Using CUDA acceleration")
         except Exception:
             pass
 
@@ -100,7 +103,7 @@ class ClassifierInference:
             self.part_mapping = {
                 int(k): v for k, v in part_data.get("idx_to_part", {}).items()
             }
-        print(f"[Classifier] Loaded {len(self.part_mapping)} part classes")
+        logger.info("Loaded %d part classes", len(self.part_mapping))
 
         # Load color mapping
         with open(COLOR_MAPPING_PATH, "r") as f:
@@ -108,10 +111,10 @@ class ClassifierInference:
             self.color_mapping = {
                 int(k): v for k, v in color_data.get("idx_to_color", {}).items()
             }
-        print(f"[Classifier] Loaded {len(self.color_mapping)} color classes")
+        logger.info("Loaded %d color classes", len(self.color_mapping))
 
         self._initialized = True
-        print("[Classifier] Ready")
+        logger.info("Classifier ready")
 
     def preprocess(self, image: Image.Image) -> np.ndarray:
         """Preprocess image for ONNX model (EfficientNet normalization)."""
@@ -228,7 +231,7 @@ class EmbeddingInference:
         import tensorflow as tf
         from tensorflow import keras
 
-        print(f"[Embedding] Loading database: {self.db_path}")
+        logger.info("Loading embedding database: %s", self.db_path)
 
         # Load database
         with open(self.db_path, "rb") as f:
@@ -251,7 +254,7 @@ class EmbeddingInference:
                     "color_id": parts[1] if len(parts) >= 2 else "9999",
                 }
 
-        print(f"[Embedding] Loaded {len(self.db)} embeddings")
+        logger.info("Loaded %d embeddings", len(self.db))
 
         # Build model
         base_model = tf.keras.applications.EfficientNetB0(
@@ -270,7 +273,7 @@ class EmbeddingInference:
         self.vectors = np.array([v["embedding"] for v in self.db.values()])
 
         self._initialized = True
-        print("[Embedding] Ready")
+        logger.info("Embedding search ready")
 
     def predict(self, image_bytes: bytes, top_k: int = TOP_K) -> List[Dict]:
         """Predict using embedding similarity search."""
@@ -344,7 +347,7 @@ class ModelLoader:
         if self._initialized:
             return
 
-        print("[ModelLoader] Initializing...")
+        logger.info("ModelLoader initializing...")
 
         self.inference_mode = None
         self.classifier: Optional[ClassifierInference] = None
@@ -364,9 +367,9 @@ class ModelLoader:
                 )
                 self.classifier.initialize()
                 self.inference_mode = "classifier"
-                print("[ModelLoader] Using M4 Classifier (ONNX)")
+                logger.info("Using M4 Classifier (ONNX)")
             except Exception as e:
-                print(f"[ModelLoader] Classifier init failed: {e}")
+                logger.warning("Classifier init failed: %s", e)
                 self.classifier = None
 
         # Fallback to embedding if classifier not available
@@ -377,15 +380,15 @@ class ModelLoader:
                     self.embedding = EmbeddingInference(db_path)
                     self.embedding.initialize()
                     self.inference_mode = "embedding"
-                    print("[ModelLoader] Using Embedding Search (fallback)")
+                    logger.info("Using Embedding Search (fallback)")
                 except Exception as e:
-                    print(f"[ModelLoader] Embedding init failed: {e}")
+                    logger.warning("Embedding init failed: %s", e)
 
         if self.inference_mode is None:
             raise RuntimeError("No inference model available!")
 
         self._initialized = True
-        print(f"[ModelLoader] Ready (mode: {self.inference_mode})")
+        logger.info("ModelLoader ready (mode: %s)", self.inference_mode)
 
     def remove_background(self, image_bytes: bytes) -> bytes:
         """Remove background using rembg."""
@@ -405,7 +408,7 @@ class ModelLoader:
             try:
                 image_bytes = self.remove_background(image_bytes)
             except Exception as e:
-                print(f"[ModelLoader] Background removal failed: {e}")
+                logger.warning("Background removal failed: %s", e)
 
         # Run inference
         if self.inference_mode == "classifier" and self.classifier:
