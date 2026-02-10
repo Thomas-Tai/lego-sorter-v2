@@ -1,0 +1,7 @@
+# Sorting Mechanism Configuration
+# Placeholder for future sorting mechanism development
+
+sorting:
+  num_bins: 6
+  mechanism_type: "TBD"   # servo | stepper | conveyor (to be determined)
+  bin_mapping: {}          # part_num -> bin_id mapping (populated at runtime)

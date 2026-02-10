@@ -15,3 +15,10 @@ gpio:
     in1: 23
     in2: 24
     enable: 25
+
+pins:
+  # Currently hardcoded in modules/hardware/*.py
+  # Future: drivers will read from this section at init
+  led_pwm: 12          # GPIO 12 (PWM0, via MOSFET)
+  motor_pins: [6, 13, 19, 26]  # 28BYJ-48 via ULN2003
+  button: 17            # GPIO 17 (physical trigger)
