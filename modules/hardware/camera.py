@@ -3,8 +3,11 @@ Camera Driver Module
 Provides CameraDriver class for webcam/USB camera control.
 """
 
+import logging
 import os
 import time
+
+logger = logging.getLogger(__name__)
 
 try:
     import cv2
@@ -57,7 +60,7 @@ class CameraDriver:
             # Log actual resolution obtained
             actual_w = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
             actual_h = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-            print(f"Camera opened: {actual_w}x{actual_h}")
+            logger.info(f"Camera opened: {actual_w}x{actual_h}")
 
             return True
         return False

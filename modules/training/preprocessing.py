@@ -141,7 +141,7 @@ def preprocess_dataset(
     image_files = list(raw_path.glob("**/*.jpg"))
     total = len(image_files)
 
-    print(f"Processing {total} images...")
+    logger.info(f"Processing {total} images...")
 
     for i, img_path in enumerate(image_files):
         # Preserve directory structure
@@ -160,10 +160,10 @@ def preprocess_dataset(
 
         # Progress
         if (i + 1) % 10 == 0 or (i + 1) == total:
-            print(f"  [{i+1}/{total}] Processed")
+            logger.info(f"  [{i+1}/{total}] Processed")
 
-    print(
-        f"\nComplete: {stats['success']} processed, "
+    logger.info(
+        f"Complete: {stats['success']} processed, "
         f"{stats['skipped']} skipped, {stats['failed']} failed"
     )
 
