@@ -10,5 +10,6 @@ opencv-python-headless>=4.5.0
 gpiozero>=2.0
 rpi-lgpio>=0.6  # Required for Pi 5 compatibility
 # RPi.GPIO>=0.7.0  # Legacy, use lgpio instead for Pi 5
+pyserial>=3.5  # ESP32 UART communication for gantry control
 
 # TensorFlow Lite runtime will be added later for the Pi

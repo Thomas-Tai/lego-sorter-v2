@@ -1,0 +1,24 @@
+# Gantry Configuration for LEGO Sorter V2
+# Controls ESP32 UART communication and motion parameters
+
+gantry:
+  serial:
+    port: "/dev/ttyUSB0"     # ESP32 UART (Pi)
+    baud_rate: 115200
+    timeout_s: 5.0           # per-command timeout
+    retry_count: 2
+
+  motion:
+    x_max_mm: 355.0
+    y_max_mm: 160.0
+    feed_rate_mm_min: 3000   # = 50 mm/s default
+    homing_required: true
+
+  servo:
+    open_angle_us: 2500
+    close_angle_us: 500
+    gate_hold_ms: 300
+
+  simulation:
+    enabled: false           # override with --simulate CLI flag
+    move_delay_s: 0.1        # simulated move time
