@@ -50,3 +50,5 @@ Project_Manage/
 test_error.txt
 validation_report.txt
 nul
+
+firmware/esp32/.pio/
