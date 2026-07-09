@@ -12,7 +12,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-def find_turntable_circle(image: np.ndarray) -> tuple:
+def find_turntable_circle(image: np.ndarray) -> tuple | None:
     """Detect the gray circular turntable in the image.
 
     Returns:
