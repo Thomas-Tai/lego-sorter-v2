@@ -22,3 +22,12 @@ gantry:
   simulation:
     enabled: false           # override with --simulate CLI flag
     move_delay_s: 0.1        # simulated move time
+
+  # Pickup/handoff position (spec.md §5.1/§5.2 PickupConfig(x, y position)).
+  # SM-DES-004 §2.2b: conveyor chute outlet X=0 = gantry home, so pickup
+  # coincides with home in the MVP design. No current code path reads this
+  # yet (see PickupConfig docstring in sorter_app/domain/schemas.py) --
+  # config/schema groundwork only, values UNVERIFIED against real hardware.
+  pickup:
+    x_mm: 0.0
+    y_mm: 0.0

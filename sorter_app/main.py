@@ -60,7 +60,31 @@ def build_arg_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Enable sorting (requires gantry hardware or --simulate)",
     )
+    parser.add_argument(
+        "--serial-port",
+        type=str,
+        default=None,
+        help=(
+            "Override the gantry serial port (e.g. /dev/ttyUSB0 or COM3) "
+            "normally read from gantry.yaml. CLI value takes precedence. "
+            "Accepted but ignored (no hardware is opened) when --simulate "
+            "is also passed."
+        ),
+    )
     return parser
+
+
+def resolve_serial_port(configured_port: str, cli_port: str | None) -> str:
+    """Resolve the effective gantry serial port.
+
+    Args:
+        configured_port: Port loaded from gantry.yaml.
+        cli_port: Value of --serial-port, or None if not supplied.
+
+    Returns:
+        cli_port if it was supplied (non-empty), else configured_port.
+    """
+    return cli_port if cli_port else configured_port
 
 
 def log_classification_result(
@@ -165,6 +189,26 @@ def main() -> None:
 
             # Create bin mapper
             bin_mapper = BinMapper(bin_layout_config)
+
+            # CLI --serial-port takes precedence over gantry.yaml (O-01).
+            # MockGantryClient never reads gantry_config.serial.port, so
+            # this override is a no-op (accepted, not applied) under
+            # --simulate.
+            resolved_port = resolve_serial_port(
+                gantry_config.serial.port, args.serial_port
+            )
+            if args.serial_port:
+                if args.simulate:
+                    logger.info(
+                        "--serial-port=%s supplied but --simulate is active; "
+                        "ignoring for MockGantryClient",
+                        args.serial_port,
+                    )
+                else:
+                    logger.info(
+                        "Overriding gantry serial port via CLI: %s", resolved_port
+                    )
+            gantry_config.serial.port = resolved_port
 
             # Create gantry client (real or mock)
             if args.simulate:

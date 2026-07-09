@@ -170,6 +170,33 @@ class GantryServoConfig(BaseModel):
     gate_hold_ms: int = Field(default=300, ge=0, description="Hold time ms")
 
 
+class PickupConfig(BaseModel):
+    """Gantry pickup/handoff position configuration.
+
+    Defines the gantry position used for part pickup/handoff with the
+    conveyor, per spec.md §5.1/§5.2 (PickupConfig(x, y position)). Per
+    SM-DES-004 §2.2b (Published Interface Ledger), the conveyor chute
+    outlet is at X=0, which is also the gantry home position — so in the
+    MVP mechanical design, pickup coincides with home (0.0, 0.0).
+
+    NOTE: No consumer in the current codebase reads this config yet
+    (GantrySortingService.sort_to_bin does not return-to-pickup between
+    cycles; only GantrySortingService.cleanup() moves to a hardcoded
+    (0.0, 0.0)). This section is schema/config groundwork for that future
+    wiring — see UNVERIFIED notes in sw-2-report.md. Only x_mm/y_mm are
+    defined because spec.md's PickupConfig has no other fields and no
+    Z-axis or servo/settle-time concept exists anywhere else in the gantry
+    design (the gantry is 2D X-Y only).
+
+    Attributes:
+        x_mm: X coordinate of the pickup position in millimeters.
+        y_mm: Y coordinate of the pickup position in millimeters.
+    """
+
+    x_mm: float = Field(default=0.0, ge=0.0, description="Pickup X coordinate in mm")
+    y_mm: float = Field(default=0.0, ge=0.0, description="Pickup Y coordinate in mm")
+
+
 class GantrySimulationConfig(BaseModel):
     """Simulation mode configuration.
 
@@ -193,6 +220,10 @@ class GantryConfig(BaseModel):
         motion: Motion parameters.
         servo: Servo gate configuration.
         simulation: Simulation mode settings.
+        pickup: Pickup/handoff position config. Optional with safe
+            defaults (0.0, 0.0) so existing yaml-less GantryConfig(...)
+            call sites and tests that predate this field keep working
+            unchanged.
     """
 
     serial: GantrySerialConfig = Field(description="Serial config")
@@ -200,4 +231,7 @@ class GantryConfig(BaseModel):
     servo: GantryServoConfig = Field(description="Servo config")
     simulation: GantrySimulationConfig = Field(
         default_factory=GantrySimulationConfig, description="Simulation config"
+    )
+    pickup: PickupConfig = Field(
+        default_factory=PickupConfig, description="Pickup/handoff position config"
     )
