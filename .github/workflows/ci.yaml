@@ -61,3 +61,24 @@ jobs:
     - name: Test with pytest
       run: |
         pytest
+
+  # 第二個任務：ESP32 韌體原生單元測試 (V-08)
+  # 在 Ubuntu 的 GCC 工具鏈上執行 protocol / scurve / motion_planner 的數學驗證，
+  # 不需要實體硬體 (SM-TODO-001 S5-20/21/24)
+  firmware-native-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v3
+
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Install PlatformIO
+      run: pip install platformio
+
+    - name: Run firmware native unit tests
+      run: pio test -e native --project-dir firmware/esp32
