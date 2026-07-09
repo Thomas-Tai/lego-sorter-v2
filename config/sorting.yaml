@@ -1,7 +1,16 @@
-# Sorting Mechanism Configuration
-# Placeholder for future sorting mechanism development
+# Sorting Application Configuration (O-02)
+#
+# Root config for sorter_app/main.py, validated against
+# sorter_app.domain.schemas.SortingConfig. Tells main.py which sub-config
+# files to load and a couple of app-level paths, replacing the pre-M5
+# mechanism_type: "TBD" placeholder. Absent file, or omitted fields below,
+# fall back to the same safe defaults main.py used before this file
+# existed (see SortingConfig field defaults).
 
 sorting:
-  num_bins: 6
-  mechanism_type: "TBD"   # servo | stepper | conveyor (to be determined)
-  bin_mapping: {}          # part_num -> bin_id mapping (populated at runtime)
+  gantry_config: "config/gantry.yaml"
+  bin_layout_config: "config/bin_layout.yaml"
+  capture_path: "data/captures/test_capture.jpg"
+  # api_url: "http://localhost:8000"   # optional override; omit to keep
+  #   using ConfigService's own resolution (LEGO_API_URL env var, else
+  #   http://localhost:8000)

@@ -235,3 +235,50 @@ class GantryConfig(BaseModel):
     pickup: PickupConfig = Field(
         default_factory=PickupConfig, description="Pickup/handoff position config"
     )
+
+
+class SortingConfig(BaseModel):
+    """Root application configuration model for config/sorting.yaml.
+
+    This replaces the pre-M5 ``mechanism_type: "TBD"`` placeholder stub
+    (O-02). It tells ``sorter_app/main.py`` which sub-config files to load
+    (instead of hardcoded ``os.path.join(config_dir, "gantry.yaml")``-style
+    joins) plus a couple of other app-level values that used to be
+    hardcoded directly in ``main.py``.
+
+    Path fields are interpreted relative to the project root when not
+    absolute (same convention as the hardcoded joins they replace), which
+    main.py resolves at load time.
+
+    Attributes:
+        gantry_config: Path to the gantry hardware config YAML.
+        bin_layout_config: Path to the bin layout config YAML.
+        capture_path: Default path to save a camera capture when no
+            ``--test-image`` is supplied.
+        api_url: Optional inference API base URL override. When omitted
+            (None, the default), ``ConfigService``'s own resolution
+            (``LEGO_API_URL`` env var, else ``http://localhost:8000``) is
+            used unchanged - so leaving this unset preserves prior
+            behavior exactly.
+    """
+
+    gantry_config: str = Field(
+        default="config/gantry.yaml",
+        min_length=1,
+        description="Path to gantry.yaml (relative to project root, or absolute)",
+    )
+    bin_layout_config: str = Field(
+        default="config/bin_layout.yaml",
+        min_length=1,
+        description="Path to bin_layout.yaml (relative to project root, or absolute)",
+    )
+    capture_path: str = Field(
+        default="data/captures/test_capture.jpg",
+        min_length=1,
+        description="Default capture output path (relative to project root, or absolute)",
+    )
+    api_url: str | None = Field(
+        default=None,
+        min_length=1,
+        description="Optional inference API base URL override",
+    )

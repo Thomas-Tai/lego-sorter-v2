@@ -1,17 +1,17 @@
-"""Pydantic configuration schemas for the Lego Sorter application."""
+"""Pydantic configuration schemas for the Lego Sorter application.
 
-from pydantic import BaseModel
+DEPRECATED LOCATION (O-02): this module used to define a placeholder
+``SortingConfig`` stub (``mechanism_type: "TBD"``) that nothing in the
+codebase actually loaded. The real, wired-up ``SortingConfig`` now lives
+in ``sorter_app.domain.schemas`` alongside the other root config models
+(``GantryConfig``, ``BinLayoutConfig``) that ``sorter_app/main.py`` loads.
 
+This file is kept only so any external reference to
+``config.schemas.config_schema.SortingConfig`` keeps resolving; it just
+re-exports the canonical class. Prefer importing directly from
+``sorter_app.domain.schemas`` in new code.
+"""
 
-class SortingConfig(BaseModel):
-    """Validation schema for config/sorting.yaml.
+from sorter_app.domain.schemas import SortingConfig
 
-    Attributes:
-        num_bins: Number of physical sorting bins available.
-        mechanism_type: Type of sorting mechanism (servo, stepper, conveyor, or TBD).
-        bin_mapping: Mapping of part numbers to bin identifiers.
-    """
-
-    num_bins: int = 6
-    mechanism_type: str = "TBD"
-    bin_mapping: dict[str, int] = {}
+__all__ = ["SortingConfig"]

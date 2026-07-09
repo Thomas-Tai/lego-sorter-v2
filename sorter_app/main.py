@@ -13,7 +13,7 @@ from sorter_app.services.api_client import APIClient
 from sorter_app.services.hardware_service import RaspberryPiHardwareService
 from sorter_app.services.vision_service import RaspberryPiVisionService
 from sorter_app.services.gantry_sorting_service import GantrySortingService
-from sorter_app.domain.schemas import BinLayoutConfig, GantryConfig
+from sorter_app.domain.schemas import BinLayoutConfig, GantryConfig, SortingConfig
 from sorter_app.domain.bin_mapper import BinMapper
 from sorter_app.hardware import GantryClient, MockGantryClient
 from sorter_app.exceptions import GantryError, BinMappingError
@@ -155,25 +155,75 @@ def load_bin_layout_config(config_path: str) -> BinLayoutConfig:
     return BinLayoutConfig(**data["bin_layout"])
 
 
-def main() -> None:
-    """Run the sorter application main loop.
+def resolve_config_path(project_root: str, path: str) -> str:
+    """Resolve a (possibly relative) SortingConfig path against project_root.
 
-    Parses CLI arguments, initializes services via DI, captures an image
-    (or uses a provided test image), and sends it to the inference API.
-    If --sort is specified, sorts the part to the appropriate bin.
+    Absolute paths are returned unchanged. Relative paths are joined onto
+    project_root - this matches the pre-O-02 hardcoded
+    ``os.path.join(config_dir, ...)`` / ``os.path.join(data_dir, "captures", ...)``
+    behavior exactly, so SortingConfig's defaults resolve to the same
+    paths main.py used before this schema existed.
+
+    Args:
+        project_root: Absolute path to the repository root.
+        path: A path from SortingConfig (relative or absolute).
+
+    Returns:
+        Absolute path.
+    """
+    if os.path.isabs(path):
+        return os.path.normpath(path)
+    return os.path.normpath(os.path.join(project_root, path))
+
+
+def load_sorting_config(config_path: str) -> SortingConfig:
+    """Load the sorting app configuration from YAML, if present.
+
+    Args:
+        config_path: Path to sorting.yaml.
+
+    Returns:
+        Validated SortingConfig. If the file does not exist, returns
+        ``SortingConfig()`` (all field defaults) so main.py behaves the
+        same as before config/sorting.yaml was wired up (O-02).
+    """
+    if not os.path.exists(config_path):
+        logger.info("%s not found; using default SortingConfig", config_path)
+        return SortingConfig()
+
+    with open(config_path, "r") as f:
+        data = yaml.safe_load(f) or {}
+    return SortingConfig(**(data.get("sorting") or {}))
+
+
+def main() -> None:
+    """Run the sorter application.
+
+    Parses CLI arguments, loads SortingConfig (O-02) and initializes
+    services via DI, captures an image (or uses a provided test image),
+    and sends it to the inference API. If --sort is specified, sorts the
+    part to the appropriate bin.
     """
     logger.info("Starting Lego Sorter App...")
 
     parser = build_arg_parser()
     args = parser.parse_args()
 
-    config_service = ConfigService()
-    api_client = APIClient(base_url=config_service.api_url)
-
-    # Determine config paths
+    # Determine project paths and load the sorting app config (O-02).
+    # Falls back to SortingConfig() defaults (== the old hardcoded paths)
+    # when config/sorting.yaml is absent or fields are omitted.
     current_dir = os.path.dirname(os.path.abspath(__file__))
     project_root = os.path.dirname(current_dir)
-    config_dir = os.path.join(project_root, "config")
+    sorting_config = load_sorting_config(
+        os.path.join(project_root, "config", "sorting.yaml")
+    )
+
+    config_service = ConfigService()
+    # sorting_config.api_url is None by default, so this preserves the
+    # prior behavior (ConfigService's own LEGO_API_URL/localhost default)
+    # unless config/sorting.yaml explicitly sets api_url.
+    api_url = sorting_config.api_url or config_service.api_url
+    api_client = APIClient(base_url=api_url)
 
     # Initialize sorting services if sorting is enabled
     sorting_service: GantrySortingService | None = None
@@ -181,10 +231,13 @@ def main() -> None:
 
     if args.sort:
         try:
-            # Load configurations
-            gantry_config = load_gantry_config(os.path.join(config_dir, "gantry.yaml"))
+            # Load configurations (paths now come from SortingConfig, O-02,
+            # instead of hardcoded os.path.join(config_dir, ...) calls).
+            gantry_config = load_gantry_config(
+                resolve_config_path(project_root, sorting_config.gantry_config)
+            )
             bin_layout_config = load_bin_layout_config(
-                os.path.join(config_dir, "bin_layout.yaml")
+                resolve_config_path(project_root, sorting_config.bin_layout_config)
             )
 
             # Create bin mapper
@@ -230,8 +283,10 @@ def main() -> None:
             args.sort = False  # Disable sorting but continue with inference
 
     try:
-        data_dir = os.path.join(project_root, "data")
-        image_path = os.path.join(data_dir, "captures", "test_capture.jpg")
+        # Default capture output path now comes from SortingConfig (O-02);
+        # default value resolves to the same path as the prior hardcoded
+        # os.path.join(project_root, "data", "captures", "test_capture.jpg").
+        image_path = resolve_config_path(project_root, sorting_config.capture_path)
 
         captured = False
 
