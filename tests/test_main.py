@@ -27,14 +27,13 @@ from sorter_app.domain.schemas import (
     GridConfig,
     OverflowConfig,
 )
-from sorter_app.main import (
+from sorter_app.main import build_arg_parser, resolve_serial_port
+from sorter_app.services.sorting_loop import (
     REASON_BELOW_THRESHOLD,
     REASON_CLASSIFICATION_FAILED,
     REASON_OK,
     REASON_UNMAPPED_PART,
-    build_arg_parser,
     log_classification_result,
-    resolve_serial_port,
 )
 
 # ---------------------------------------------------------------------------

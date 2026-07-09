@@ -13,6 +13,12 @@ from sorter_app.services.api_client import APIClient
 from sorter_app.services.hardware_service import RaspberryPiHardwareService
 from sorter_app.services.vision_service import RaspberryPiVisionService
 from sorter_app.services.gantry_sorting_service import GantrySortingService
+from sorter_app.services.part_feed_provider import SimulatedPartFeedProvider
+from sorter_app.services.sorting_loop import (
+    NoOpClassificationLogger,
+    SortingLoop,
+    classify_and_sort,
+)
 from sorter_app.domain.schemas import BinLayoutConfig, GantryConfig, SortingConfig
 from sorter_app.domain.bin_mapper import BinMapper
 from sorter_app.hardware import GantryClient, MockGantryClient
@@ -24,17 +30,11 @@ logging.basicConfig(
 )
 logger = logging.getLogger("SorterApp")
 
-# Fallback confidence threshold; the live value comes from config/bin_layout.yaml
-# via BinMapper.confidence_threshold when a bin mapper is available (S4-01).
-CONFIDENCE_THRESHOLD = 0.80
-
-# Structured classification reason codes (S3-03 / O-05 / O-06).
-REASON_OK = "ok"
-REASON_BELOW_THRESHOLD = "below_threshold"
-REASON_UNMAPPED_PART = "unmapped_part"
-REASON_NO_MATCH = "no_match"
-REASON_API_ERROR = "api_error"
-REASON_CLASSIFICATION_FAILED = "classification_failed"
+# The structured classification reason codes, log_classification_result,
+# ClassificationRecord, ClassificationLogger/NoOpClassificationLogger, and
+# classify_and_sort/SortingLoop (the shared single-shot/loop decision path,
+# O-04) live in sorter_app.services.sorting_loop - import from there
+# directly (tests/test_main.py does).
 
 
 def build_arg_parser() -> argparse.ArgumentParser:
@@ -71,6 +71,21 @@ def build_arg_parser() -> argparse.ArgumentParser:
             "is also passed."
         ),
     )
+    parser.add_argument(
+        "--loop",
+        type=int,
+        default=None,
+        metavar="N",
+        help=(
+            "Run the sorting loop (wait_for_part -> capture -> classify -> "
+            "sort -> log, repeated) for N cycles against a simulated "
+            "PartFeedProvider instead of a single classification (O-04). "
+            "Requires --simulate and --test-image (real S1/S2 hardware and "
+            "per-cycle capture do not exist yet; every cycle reuses the "
+            "same --test-image). Single-shot behavior (no --loop) is "
+            "unaffected and remains the default."
+        ),
+    )
     return parser
 
 
@@ -85,46 +100,6 @@ def resolve_serial_port(configured_port: str, cli_port: str | None) -> str:
         cli_port if it was supplied (non-empty), else configured_port.
     """
     return cli_port if cli_port else configured_port
-
-
-def log_classification_result(
-    *,
-    image_path: str,
-    part_id: str | None,
-    color_id: int | None,
-    confidence: float | None,
-    elapsed_ms: float,
-    decision: str,
-    reason: str,
-) -> None:
-    """Emit one structured, machine-parseable classification record.
-
-    This is a single ``key=value`` log line (S3-03) emitted once per
-    classification attempt, in addition to the existing human-readable
-    log lines - it does not replace them.
-
-    Args:
-        image_path: Path to the captured/test image used for this attempt.
-        part_id: Identified part id, or None if unavailable.
-        color_id: Identified color id, or None if unavailable.
-        confidence: Top-match confidence, or None if unavailable.
-        elapsed_ms: Wall-clock time spent in the classification API call.
-        decision: Outcome bin id as a string, or "none" if not sorted.
-        reason: Structured reason code (e.g. "ok", "below_threshold",
-            "unmapped_part", "no_match", "api_error",
-            "classification_failed").
-    """
-    logger.info(
-        "classification_result image=%s part_id=%s color_id=%s "
-        "confidence=%s elapsed_ms=%.1f decision=%s reason=%s",
-        os.path.basename(image_path),
-        part_id if part_id is not None else "none",
-        color_id if color_id is not None else "none",
-        f"{confidence:.4f}" if confidence is not None else "none",
-        elapsed_ms,
-        decision,
-        reason,
-    )
 
 
 def load_gantry_config(config_path: str) -> GantryConfig:
@@ -202,7 +177,10 @@ def main() -> None:
     Parses CLI arguments, loads SortingConfig (O-02) and initializes
     services via DI, captures an image (or uses a provided test image),
     and sends it to the inference API. If --sort is specified, sorts the
-    part to the appropriate bin.
+    part to the appropriate bin. If --loop N is specified, repeats the
+    wait_for_part -> capture -> classify -> sort -> log cycle N times via
+    SortingLoop (O-04) instead of running once; single-shot (no --loop)
+    behavior is the default and is unchanged.
     """
     logger.info("Starting Lego Sorter App...")
 
@@ -320,155 +298,47 @@ def main() -> None:
                 logger.info("Hardware cleanup complete")
 
         if captured:
-            logger.info("Sending to inference API...")
-            classify_start = time.perf_counter()
-            try:
-                result = api_client.predict_from_image(image_path)
-                elapsed_ms = (time.perf_counter() - classify_start) * 1000.0
-
-                if result.get("success"):
-                    matches = result.get("matches", [])
-                    if matches:
-                        top_match = matches[0]
-                        part_id = top_match["part_id"]
-                        color_id = top_match["color_id"]
-                        confidence = top_match["confidence"]
-
-                        logger.info(
-                            "IDENTIFIED: %s (Color: %s)",
-                            part_id,
-                            color_id,
-                        )
-                        logger.info("   Confidence: %s", confidence)
-                        logger.info("   Source: %s", top_match["source"])
-
-                        decision = "none"
-                        reason = REASON_OK
-
-                        # Sort to bin if sorting is enabled
-                        if args.sort and sorting_service and bin_mapper:
-                            threshold = getattr(
-                                bin_mapper,
-                                "confidence_threshold",
-                                CONFIDENCE_THRESHOLD,
-                            )
-                            if confidence < threshold:
-                                # Low confidence -> overflow bin (O-05)
-                                bin_id = bin_mapper.overflow_id
-                                reason = REASON_BELOW_THRESHOLD
-                                logger.info(
-                                    "Low confidence (%.2f < %.2f), routing to overflow bin %d",
-                                    confidence,
-                                    threshold,
-                                    bin_id,
-                                )
-                            else:
-                                # Get bin for part
-                                bin_info = bin_mapper.get_bin_for_part(
-                                    part_id, color_id
-                                )
-                                bin_id = bin_info.id
-                                if bin_id == bin_mapper.overflow_id:
-                                    # BinMapper silently falls back to
-                                    # overflow for unmapped parts (O-06).
-                                    reason = REASON_UNMAPPED_PART
-                                    logger.info(
-                                        "No bin mapping for part %s (color %s), "
-                                        "routing to overflow bin %d",
-                                        part_id,
-                                        color_id,
-                                        bin_id,
-                                    )
-                                else:
-                                    reason = REASON_OK
-                                    logger.info(
-                                        "Routing to bin %d (%s)",
-                                        bin_id,
-                                        bin_info.label,
-                                    )
-
-                            sorting_service.sort_to_bin(bin_id)
-                            logger.info("Sort complete")
-                            decision = str(bin_id)
-                        elif confidence < CONFIDENCE_THRESHOLD:
-                            reason = REASON_BELOW_THRESHOLD
-
-                        log_classification_result(
-                            image_path=image_path,
-                            part_id=part_id,
-                            color_id=color_id,
-                            confidence=confidence,
-                            elapsed_ms=elapsed_ms,
-                            decision=decision,
-                            reason=reason,
-                        )
-                    else:
-                        logger.info("No matches found.")
-                        decision = "none"
-                        # No matches -> overflow bin
-                        if args.sort and sorting_service and bin_mapper:
-                            bin_id = bin_mapper.overflow_id
-                            sorting_service.sort_to_bin(bin_id)
-                            logger.info("No match, routed to overflow bin")
-                            decision = str(bin_id)
-
-                        log_classification_result(
-                            image_path=image_path,
-                            part_id=None,
-                            color_id=None,
-                            confidence=None,
-                            elapsed_ms=elapsed_ms,
-                            decision=decision,
-                            reason=REASON_NO_MATCH,
-                        )
-                else:
-                    logger.error("API Error: %s", result)
-                    log_classification_result(
-                        image_path=image_path,
-                        part_id=None,
-                        color_id=None,
-                        confidence=None,
-                        elapsed_ms=elapsed_ms,
-                        decision="none",
-                        reason=REASON_API_ERROR,
+            if args.loop is not None:
+                # O-04: repeat the same decision path `args.loop` times
+                # against a simulated PartFeedProvider instead of running
+                # classify_and_sort once. No real S1 (feeder/conveyor) or
+                # S2 (camera/presence) hardware exists yet, so --loop
+                # requires --simulate and reuses the single already
+                # captured/--test-image image for every cycle.
+                if not args.simulate:
+                    logger.error(
+                        "--loop requires --simulate (no real S1/S2 hardware yet)"
                     )
+                    return
 
-            except IOError as e:
-                elapsed_ms = (time.perf_counter() - classify_start) * 1000.0
-                logger.error("Prediction failed: %s", e)
-
-                # S3-02: classification API failure must still route the
-                # part to the overflow bin (same call path as O-06's
-                # unmapped-part handling), not just log-and-continue.
-                decision = "none"
-                if args.sort and sorting_service and bin_mapper:
-                    try:
-                        bin_id = bin_mapper.overflow_id
-                        sorting_service.sort_to_bin(bin_id)
-                        decision = str(bin_id)
-                        logger.info(
-                            "Classification failed, routed to overflow bin %d",
-                            bin_id,
-                        )
-                    except (GantryError, BinMappingError) as sort_err:
-                        # A gantry failure during this fallback must not
-                        # crash the app.
-                        logger.error(
-                            "Overflow routing after classification failure "
-                            "also failed: %s",
-                            sort_err,
-                        )
-
-                log_classification_result(
-                    image_path=image_path,
-                    part_id=None,
-                    color_id=None,
-                    confidence=None,
-                    elapsed_ms=elapsed_ms,
-                    decision=decision,
-                    reason=REASON_CLASSIFICATION_FAILED,
+                feed_provider = SimulatedPartFeedProvider(part_count=args.loop)
+                sorting_loop = SortingLoop(
+                    feed_provider=feed_provider,
+                    capture_fn=lambda: image_path,
+                    api_client=api_client,
+                    sort_enabled=args.sort,
+                    sorting_service=sorting_service,
+                    bin_mapper=bin_mapper,
+                    db_logger=NoOpClassificationLogger(),
                 )
-
+                records = sorting_loop.run(max_cycles=args.loop)
+                logger.info(
+                    "Sorting loop complete: %d cycle(s), %d record(s)",
+                    args.loop,
+                    len(records),
+                )
+            else:
+                # Single-shot (default, unaffected by O-04): same
+                # classify_and_sort decision path the loop uses above -
+                # extracted to sorter_app.services.sorting_loop so the two
+                # call sites cannot drift apart.
+                classify_and_sort(
+                    image_path=image_path,
+                    api_client=api_client,
+                    sort_enabled=args.sort,
+                    sorting_service=sorting_service,
+                    bin_mapper=bin_mapper,
+                )
         else:
             logger.error("Failed to capture image.")
 
