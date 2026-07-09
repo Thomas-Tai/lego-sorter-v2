@@ -39,6 +39,14 @@ class BinMapper:
     X_MAX_MM: Final[float] = 355.0
     Y_MAX_MM: Final[float] = 160.0
 
+    # Legacy hardcoded threshold, preserved only as a defensive fallback.
+    # Historically this value lived as a Python constant (CONFIDENCE_THRESHOLD)
+    # in sorter_app/main.py and scripts/e2e_sort_simulation.py. It now lives in
+    # config/bin_layout.yaml as BinLayoutConfig.confidence_threshold, which
+    # already defaults to this same value, so this fallback should never be
+    # exercised in practice (Pydantic guarantees the field is always set).
+    DEFAULT_CONFIDENCE_THRESHOLD: Final[float] = 0.80
+
     def __init__(self, config: BinLayoutConfig) -> None:
         """Initialize BinMapper with configuration.
 
@@ -217,6 +225,27 @@ class BinMapper:
         label = self._bin_labels[bin_id]
 
         return BinInfo(id=bin_id, x_mm=x_mm, y_mm=y_mm, label=label)
+
+    @property
+    def confidence_threshold(self) -> float:
+        """Return the confidence threshold below which parts route to overflow.
+
+        Sourced from config.confidence_threshold (config/bin_layout.yaml),
+        falling back to DEFAULT_CONFIDENCE_THRESHOLD (the old hardcoded
+        constant) only if the config value is somehow absent. Pydantic's
+        field default already makes that fallback unreachable in practice;
+        it exists defensively so behavior is guaranteed unchanged from the
+        pre-config hardcoded constant.
+
+        Callers that previously compared confidence against a local
+        CONFIDENCE_THRESHOLD constant (e.g. sorter_app/main.py,
+        scripts/e2e_sort_simulation.py) can migrate to this property to
+        become config-driven; that migration is not done here because
+        those files are outside this change's scope.
+        """
+        return getattr(
+            self._config, "confidence_threshold", self.DEFAULT_CONFIDENCE_THRESHOLD
+        )
 
     @property
     def overflow_id(self) -> int:

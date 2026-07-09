@@ -96,6 +96,11 @@ class BinLayoutConfig(BaseModel):
         bins: List of bin entries in the grid.
         overflow: Overflow bin configuration.
         assignments: Part-to-bin mapping (partId_colorId → bin_id).
+        confidence_threshold: Minimum classification confidence required to
+            route a part to its resolved bin; below this, callers should
+            route to the overflow bin instead. Default (0.80) matches the
+            legacy hardcoded CONFIDENCE_THRESHOLD constant previously in
+            sorter_app/main.py and scripts/e2e_sort_simulation.py.
     """
 
     version: int = Field(ge=1, description="Config version")
@@ -105,6 +110,15 @@ class BinLayoutConfig(BaseModel):
     assignments: dict[str, int] = Field(
         default_factory=dict,
         description="Part-to-bin mapping (partId_colorId → bin_id)",
+    )
+    confidence_threshold: float = Field(
+        default=0.80,
+        gt=0.0,
+        lt=1.0,
+        description=(
+            "Minimum confidence to route to a resolved bin; below this, "
+            "route to overflow"
+        ),
     )
 
 
