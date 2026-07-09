@@ -12,7 +12,7 @@ from sorter_app.domain.schemas import (
     GantryServoConfig,
     GantrySimulationConfig,
 )
-from sorter_app.exceptions import GantryError
+from sorter_app.exceptions import GantryError, GantryProtocolError, GantryTimeoutError
 
 
 # Test fixtures
@@ -323,6 +323,150 @@ class TestGantryClientInterface:
 
             response = client._send_command("G28")
             assert response == "ok"
+
+
+class TestGantryClientErrorHierarchy:
+    """Tests that GantryClient raises the specific error subclasses."""
+
+    def test_serial_read_timeout_raises_gantry_timeout_error(
+        self, gantry_config: GantryConfig
+    ) -> None:
+        """Test that a serial read timeout raises GantryTimeoutError."""
+        mock_serial_module = MagicMock()
+        mock_port = MagicMock()
+        mock_serial_module.Serial.return_value = mock_port
+
+        with patch.dict("sys.modules", {"serial": mock_serial_module}):
+            from sorter_app.hardware.gantry_client import (
+                GantryClient as MockedGantryClient,
+            )
+
+            client = MockedGantryClient(gantry_config)
+
+            mock_port.readline.side_effect = [b"!READY\n"]
+            client.connect()
+
+            # Empty bytes on every read == timeout on every retry attempt.
+            mock_port.readline.side_effect = None
+            mock_port.readline.return_value = b""
+
+            with pytest.raises(GantryTimeoutError, match="Serial read timeout"):
+                client._read_response()
+
+    def test_notification_wait_timeout_raises_gantry_timeout_error(
+        self, gantry_config: GantryConfig
+    ) -> None:
+        """Test that a notification wait timeout raises GantryTimeoutError."""
+        mock_serial_module = MagicMock()
+        mock_port = MagicMock()
+        mock_serial_module.Serial.return_value = mock_port
+
+        with patch.dict("sys.modules", {"serial": mock_serial_module}):
+            from sorter_app.hardware.gantry_client import (
+                GantryClient as MockedGantryClient,
+            )
+
+            client = MockedGantryClient(gantry_config)
+
+            mock_port.readline.side_effect = [b"!READY\n"]
+            client.connect()
+
+            # Notification never arrives - readline always returns nothing.
+            mock_port.readline.side_effect = None
+            mock_port.readline.return_value = b""
+
+            with pytest.raises(
+                GantryTimeoutError, match="Timeout waiting for notification"
+            ):
+                client._wait_for_notification("!HOMED", timeout=0.05)
+
+    def test_malformed_nack_raises_gantry_protocol_error(
+        self, gantry_config: GantryConfig
+    ) -> None:
+        """Test that an unparseable 'error:' line raises GantryProtocolError."""
+        mock_serial_module = MagicMock()
+        mock_port = MagicMock()
+        mock_serial_module.Serial.return_value = mock_port
+
+        with patch.dict("sys.modules", {"serial": mock_serial_module}):
+            from sorter_app.hardware.gantry_client import (
+                GantryClient as MockedGantryClient,
+            )
+
+            client = MockedGantryClient(gantry_config)
+
+            mock_port.readline.side_effect = [b"!READY\n"]
+            client.connect()
+
+            # "error:" with a non-numeric code fails int() parsing (NACK parse
+            # failure), which should surface as GantryProtocolError.
+            mock_port.readline.side_effect = [b"error:not-a-number\n"]
+
+            with pytest.raises(GantryProtocolError, match="Firmware error"):
+                client._read_response()
+
+    def test_unexpected_response_raises_gantry_protocol_error(
+        self, gantry_config: GantryConfig
+    ) -> None:
+        """Test that an unrecognized response token raises GantryProtocolError."""
+        mock_serial_module = MagicMock()
+        mock_port = MagicMock()
+        mock_serial_module.Serial.return_value = mock_port
+
+        with patch.dict("sys.modules", {"serial": mock_serial_module}):
+            from sorter_app.hardware.gantry_client import (
+                GantryClient as MockedGantryClient,
+            )
+
+            client = MockedGantryClient(gantry_config)
+
+            mock_port.readline.side_effect = [b"!READY\n"]
+            client.connect()
+
+            mock_port.readline.side_effect = [b"garbage-token\n"]
+
+            with pytest.raises(GantryProtocolError, match="Unexpected response"):
+                client._read_response()
+
+    def test_position_parse_failure_raises_gantry_protocol_error(
+        self, gantry_config: GantryConfig
+    ) -> None:
+        """Test that a malformed position response raises GantryProtocolError."""
+        mock_serial_module = MagicMock()
+        mock_port = MagicMock()
+        mock_serial_module.Serial.return_value = mock_port
+
+        with patch.dict("sys.modules", {"serial": mock_serial_module}):
+            from sorter_app.hardware.gantry_client import (
+                GantryClient as MockedGantryClient,
+            )
+
+            client = MockedGantryClient(gantry_config)
+
+            mock_port.readline.side_effect = [
+                b"!READY\n",
+                b"ok not-a-position\n",
+            ]
+            client.connect()
+
+            with pytest.raises(
+                GantryProtocolError, match="Failed to parse position response"
+            ):
+                client.get_position()
+
+    def test_gantry_timeout_error_is_gantry_error(self) -> None:
+        """Test that GantryTimeoutError is a GantryError subclass."""
+        assert issubclass(GantryTimeoutError, GantryError)
+
+        with pytest.raises(GantryError):
+            raise GantryTimeoutError("timed out")
+
+    def test_gantry_protocol_error_is_gantry_error(self) -> None:
+        """Test that GantryProtocolError is a GantryError subclass."""
+        assert issubclass(GantryProtocolError, GantryError)
+
+        with pytest.raises(GantryError):
+            raise GantryProtocolError("bad response")
 
 
 class TestAbstractGantryClient:

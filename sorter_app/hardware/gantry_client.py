@@ -10,7 +10,7 @@ import threading
 import time
 from typing import TYPE_CHECKING, Optional, Any
 
-from ..exceptions import GantryError
+from ..exceptions import GantryError, GantryProtocolError, GantryTimeoutError
 from ..domain.schemas import GantryConfig
 from .abstract_gantry import AbstractGantryClient
 
@@ -189,13 +189,15 @@ class GantryClient(AbstractGantryClient):
             Tuple of (x_mm, y_mm) current position.
 
         Raises:
-            GantryError: If command fails or timeout expires.
+            GantryTimeoutError: If the command times out.
+            GantryProtocolError: If the response cannot be parsed.
+            GantryError: If command fails.
         """
         response = self._send_command("M114")
         # Parse "ok X:123.0 Y:456.0" format
         match = re.search(r"X:([0-9.]+)\s+Y:([0-9.]+)", response)
         if not match:
-            raise GantryError(f"Failed to parse position response: {response}")
+            raise GantryProtocolError(f"Failed to parse position response: {response}")
 
         x = float(match.group(1))
         y = float(match.group(2))
@@ -291,14 +293,20 @@ class GantryClient(AbstractGantryClient):
             Response string.
 
         Raises:
-            GantryError: If error response or timeout.
+            GantryTimeoutError: If no response is received before the
+                serial port timeout elapses.
+            GantryProtocolError: If the response is malformed or an
+                unrecognized token (e.g. an unparseable NACK line or
+                an unexpected response format).
+            GantryError: If a well-formed firmware error (NACK) is
+                received.
         """
         assert self._serial is not None
 
         while True:
             line_bytes = self._serial.readline()
             if not line_bytes:
-                raise GantryError("Serial read timeout")
+                raise GantryTimeoutError("Serial read timeout")
 
             line = line_bytes.decode("ascii", errors="replace").strip()
             logger.debug("Received: %s", line)
@@ -320,7 +328,7 @@ class GantryClient(AbstractGantryClient):
                     msg = ERROR_CODES.get(code, "Unknown error")
                     raise GantryError(f"Firmware error {code}: {msg}")
                 except (IndexError, ValueError):
-                    raise GantryError(f"Firmware error: {line}")
+                    raise GantryProtocolError(f"Firmware error: {line}")
 
             # Check for ok response
             if line.startswith("ok"):
@@ -328,7 +336,7 @@ class GantryClient(AbstractGantryClient):
 
             # Unknown response format
             logger.warning("Unexpected response format: %s", line)
-            raise GantryError(f"Unexpected response: {line}")
+            raise GantryProtocolError(f"Unexpected response: {line}")
 
     def _wait_for_notification(self, expected: str, timeout: float) -> None:
         """Wait for a specific notification.
@@ -338,7 +346,9 @@ class GantryClient(AbstractGantryClient):
             timeout: Timeout in seconds.
 
         Raises:
-            GantryError: If timeout expires.
+            GantryTimeoutError: If timeout expires.
+            GantryError: If an emergency stop notification is received
+                while waiting.
         """
         start_time = time.monotonic()
         assert self._serial is not None
@@ -351,7 +361,9 @@ class GantryClient(AbstractGantryClient):
             while True:
                 elapsed = time.monotonic() - start_time
                 if elapsed > timeout:
-                    raise GantryError(f"Timeout waiting for notification '{expected}'")
+                    raise GantryTimeoutError(
+                        f"Timeout waiting for notification '{expected}'"
+                    )
 
                 with self._lock:
                     line_bytes = self._serial.readline()
