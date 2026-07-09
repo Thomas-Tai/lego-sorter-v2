@@ -2,6 +2,7 @@
 pandas>=2.0.0
 PyYAML>=6.0
 pydantic>=2.0.0
+requests>=2.31.0  # APIClient -> PC inference server (SM-SPEC-001 §3.1)
 
 # Vision - use headless for Raspberry Pi (no GUI dependencies)
 opencv-python-headless>=4.5.0
