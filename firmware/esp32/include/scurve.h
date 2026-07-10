@@ -6,12 +6,13 @@
  * 
  * Profile: P1 (jerk ramp-up) → P4 (cruise) → P7 (jerk ramp-down)
  * 
- * Key formulas:
- *   t_j = min(a_max / j_max, sqrt(v_target / j_max))
- *   d_min = v_max² / j_max = 1.25 mm
- * 
- * @version 1.0
- * @date 2026-03-10
+ * Key formulas (single constant-jerk ramp per side):
+ *   t_j   = sqrt(2 × v_target / j_max), capped at a_max / j_max
+ *   d_min = v × t_j ≈ 11.18 mm at v_max = 50 mm/s
+ *   short moves (d < d_min): v_peak = cbrt(j_max × d² / 2)
+ *
+ * @version 1.1
+ * @date 2026-07-10
  */
 
 #ifndef SCURVE_H

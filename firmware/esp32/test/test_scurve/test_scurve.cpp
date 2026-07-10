@@ -5,7 +5,10 @@
  * Expected values are derived from config.h constants so the tests track
  * configuration changes:
  *   V_MAX_MM_S = 50, A_MAX_MM_S2 = 500, J_MAX_MM_S3 = 2000
- *   tJ = min(A/J, sqrt(v/J));  dJerk = J * tJ^3 / 6
+ *   tJ = sqrt(2v/J) (single constant-jerk ramp reaching v; A/J cap
+ *   cannot bind for v <= A^2/(2J) = 62.5 mm/s)
+ *   dAccel = J * tJ^3 / 6 = v*tJ/3;  dDecel = 2*dAccel;  dMin = v*tJ
+ *   short moves (d < dMin): vPeak = cbrt(J * d^2 / 2)
  *
  * Run with: pio test -e native
  */
@@ -16,14 +19,14 @@
 
 static SCurveGenerator gen;
 
-// Jerk time as coded: min(A/J, sqrt(v/J))
+// Ramp time: single constant-jerk ramp reaches v = J*tJ^2/2
 static float jerkTime(float v) {
     float t1 = A_MAX_MM_S2 / J_MAX_MM_S3;
-    float t2 = sqrtf(v / J_MAX_MM_S3);
+    float t2 = sqrtf(2.0f * v / J_MAX_MM_S3);
     return (t1 < t2) ? t1 : t2;
 }
 
-// Jerk-phase distance as coded: J * tJ^3 / 6
+// Ramp-up distance: J * tJ^3 / 6 (= v*tJ/3); ramp-down covers twice this
 static float jerkDistance(float tJ) {
     return J_MAX_MM_S3 * tJ * tJ * tJ / 6.0f;
 }
@@ -44,8 +47,8 @@ void test_long_move_profile_shape() {
     TEST_ASSERT_FLOAT_WITHIN(0.0001f, tJ, p.tAccel);
     TEST_ASSERT_FLOAT_WITHIN(0.0001f, tJ, p.tDecel);
     TEST_ASSERT_FLOAT_WITHIN(0.001f, dJ, p.dAccel);
-    TEST_ASSERT_FLOAT_WITHIN(0.001f, dJ, p.dDecel);
-    TEST_ASSERT_FLOAT_WITHIN(0.001f, 100.0f - 2.0f * dJ, p.dCruise);
+    TEST_ASSERT_FLOAT_WITHIN(0.001f, 2.0f * dJ, p.dDecel);
+    TEST_ASSERT_FLOAT_WITHIN(0.001f, 100.0f - 3.0f * dJ, p.dCruise);
     TEST_ASSERT_FLOAT_WITHIN(0.001f, p.dCruise / p.vCruise, p.tCruise);
     TEST_ASSERT_FLOAT_WITHIN(0.001f, p.tAccel + p.tCruise + p.tDecel, p.tTotal);
 }
@@ -75,9 +78,9 @@ void test_negative_distance_uses_magnitude() {
 // ----------------------------------------------------------- short moves
 
 void test_short_move_reduces_peak_velocity() {
-    // 0.5 mm < d_min: v_peak = sqrt(J * d), no cruise phase
+    // 0.5 mm < d_min: v_peak = cbrt(J * d^2 / 2), no cruise phase
     SCurveProfile p = gen.plan(0.5f, V_MAX_MM_S);
-    float vPeak = sqrtf(J_MAX_MM_S3 * 0.5f);
+    float vPeak = cbrtf(J_MAX_MM_S3 * 0.5f * 0.5f / 2.0f);
     float tJ = jerkTime(vPeak);
 
     TEST_ASSERT_FLOAT_WITHIN(0.001f, vPeak, p.vCruise);
@@ -85,28 +88,55 @@ void test_short_move_reduces_peak_velocity() {
     TEST_ASSERT_FLOAT_WITHIN(0.0001f, 0.0f, p.tCruise);
     TEST_ASSERT_FLOAT_WITHIN(0.0001f, 0.0f, p.dCruise);
     TEST_ASSERT_FLOAT_WITHIN(0.0001f, tJ, p.tJ);
-    TEST_ASSERT_FLOAT_WITHIN(0.001f, p.dAccel, p.dDecel);
+    TEST_ASSERT_FLOAT_WITHIN(0.001f, 2.0f * p.dAccel, p.dDecel);
     TEST_ASSERT_FLOAT_WITHIN(0.001f, 2.0f * tJ, p.tTotal);
 }
 
-void test_short_move_distance_consistency_KNOWN_ISSUE() {
-    // KNOWN ISSUE (found while writing these tests, 2026-07-09):
-    // for short moves the coded v_peak = sqrt(J*d) does not satisfy the
-    // profile's own kinematics: dAccel + dDecel = 2*(J*tJ^3/6) != d.
-    // For d = 0.5 mm the phase distances sum to ~1.33 mm, so getPosition()
-    // overshoots d during the accel phase and snaps back to d at tTotal.
-    // Fix belongs in a reviewed firmware change before H3 bench bring-up.
-    TEST_IGNORE_MESSAGE("scurve.cpp short-move math inconsistent: sum(phase distances) != distance");
+void test_short_move_phase_distances_sum_to_total() {
+    // Was TEST_IGNORE (KNOWN ISSUE, 2026-07-09): v_peak = sqrt(J*d) left the
+    // phase distances summing to ~1.33 mm for a 0.5 mm move. Fixed 2026-07-10:
+    // v_peak = cbrt(J*d^2/2) makes d_accel + d_decel = d exactly.
+    SCurveProfile p = gen.plan(0.5f, V_MAX_MM_S);
+    TEST_ASSERT_FLOAT_WITHIN(0.001f, 0.5f, p.dAccel + p.dCruise + p.dDecel);
+    TEST_ASSERT_FLOAT_WITHIN(0.001f, 0.5f, gen.getPosition(p, p.tTotal));
 }
 
-void test_near_dmin_move_cruise_nonnegative_KNOWN_ISSUE() {
-    // KNOWN ISSUE (same root cause): the d_min = v^2/J = 1.25 mm threshold
-    // does not match the coded jerk-phase distance 2*dJerk ~= 2.64 mm.
-    // Moves in (1.25, 2.64) mm take the full-curve branch and get a
-    // NEGATIVE dCruise/tCruise. Example: plan(2.0, 50) -> tCruise < 0.
-    // No production move today falls in this window (homing backoff is
-    // 5 mm; bin pitch >= 50 mm), but it must be fixed before H3.
-    TEST_IGNORE_MESSAGE("scurve.cpp d_min threshold inconsistent with 2*dJerk; negative cruise in (1.25, 2.64) mm");
+void test_cruise_nonnegative_across_distance_sweep() {
+    // Was TEST_IGNORE (KNOWN ISSUE, 2026-07-09): d_min = v^2/J = 1.25 mm
+    // undercut the real ramp distance, so moves in (1.25, 2.64) mm got a
+    // NEGATIVE dCruise/tCruise. Fixed 2026-07-10: d_min = v*tJ is the same
+    // expression the full branch subtracts, so cruise >= 0 by construction.
+    // Sweep covers the old dead zone and both branch sides of the new d_min.
+    const float distances[] = {0.3f, 0.5f, 1.25f, 2.0f, 2.64f,
+                               5.0f, 11.0f, 11.2f, 20.0f, 100.0f};
+    for (unsigned i = 0; i < sizeof(distances) / sizeof(distances[0]); i++) {
+        SCurveProfile p = gen.plan(distances[i], V_MAX_MM_S);
+        TEST_ASSERT_TRUE(p.tCruise >= 0.0f);
+        TEST_ASSERT_TRUE(p.dCruise >= 0.0f);
+        TEST_ASSERT_FLOAT_WITHIN(0.01f, distances[i],
+                                 p.dAccel + p.dCruise + p.dDecel);
+    }
+}
+
+// -------------------------------------------------------- ramp kinematics
+
+void test_ramp_reaches_cruise_velocity() {
+    // Velocity continuity at cruise entry: the ramp must END at vCruise
+    // (J*tJ^2/2 == vCruise). The pre-fix tJ = sqrt(v/J) ended the ramp at
+    // vCruise/2 — a commanded 25 mm/s velocity step at v = 50. Stall risk.
+    SCurveProfile pLong = gen.plan(100.0f, V_MAX_MM_S);
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, pLong.vCruise,
+                             J_MAX_MM_S3 * pLong.tJ * pLong.tJ / 2.0f);
+    SCurveProfile pShort = gen.plan(0.5f, V_MAX_MM_S);
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, pShort.vCruise,
+                             J_MAX_MM_S3 * pShort.tJ * pShort.tJ / 2.0f);
+}
+
+void test_peak_acceleration_within_amax() {
+    // Peak accel during the ramp is J*tJ; must respect A_MAX
+    // (at v_max = 50: sqrt(2*50*2000) ~= 447 mm/s^2 < 500)
+    SCurveProfile p = gen.plan(100.0f, V_MAX_MM_S);
+    TEST_ASSERT_TRUE(J_MAX_MM_S3 * p.tJ <= A_MAX_MM_S2 + 0.01f);
 }
 
 // ------------------------------------------------------- velocity queries
@@ -164,6 +194,17 @@ void test_position_in_cruise_phase() {
                              gen.getPosition(p, t));
 }
 
+void test_position_during_decel_ramp() {
+    // pos = dAccel + dCruise + vCruise*tau - J*tau^3/6 (integral of the
+    // decel velocity v_cruise - J*tau^2/2, NOT the accel integral)
+    SCurveProfile p = gen.plan(100.0f, V_MAX_MM_S);
+    float tau = p.tDecel / 2.0f;
+    float expected = p.dAccel + p.dCruise + p.vCruise * tau -
+                     J_MAX_MM_S3 * tau * tau * tau / 6.0f;
+    TEST_ASSERT_FLOAT_WITHIN(0.01f, expected,
+                             gen.getPosition(p, p.tAccel + p.tCruise + tau));
+}
+
 void test_position_monotonic_in_long_move() {
     SCurveProfile p = gen.plan(100.0f, V_MAX_MM_S);
     float p1 = gen.getPosition(p, 0.5f);
@@ -195,8 +236,10 @@ int main(int, char**) {
     RUN_TEST(test_nonpositive_velocity_defaults_to_vmax);
     RUN_TEST(test_negative_distance_uses_magnitude);
     RUN_TEST(test_short_move_reduces_peak_velocity);
-    RUN_TEST(test_short_move_distance_consistency_KNOWN_ISSUE);
-    RUN_TEST(test_near_dmin_move_cruise_nonnegative_KNOWN_ISSUE);
+    RUN_TEST(test_short_move_phase_distances_sum_to_total);
+    RUN_TEST(test_cruise_nonnegative_across_distance_sweep);
+    RUN_TEST(test_ramp_reaches_cruise_velocity);
+    RUN_TEST(test_peak_acceleration_within_amax);
     RUN_TEST(test_velocity_zero_outside_profile);
     RUN_TEST(test_velocity_during_jerk_rampup);
     RUN_TEST(test_velocity_monotonic_during_accel);
@@ -204,6 +247,7 @@ int main(int, char**) {
     RUN_TEST(test_position_boundaries);
     RUN_TEST(test_position_during_jerk_rampup);
     RUN_TEST(test_position_in_cruise_phase);
+    RUN_TEST(test_position_during_decel_ramp);
     RUN_TEST(test_position_monotonic_in_long_move);
     RUN_TEST(test_phase_sequence);
     return UNITY_END();
