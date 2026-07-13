@@ -20,18 +20,28 @@
 #define UART_BAUD           115200      // Baud rate for Pi communication
 #define UART_MAX_LINE       96          // Max line length in bytes
 
+// UART0 pins (documentation - firmware uses Serial, which defaults to
+// UART0 on these pins; they are also the ROM bootloader console, so
+// disconnect the Pi TX line while USB-flashing - SM-DES-005 §6.4)
+#define PIN_UART_TX         1           // GPIO 1 - TX0 -> Pi RX
+#define PIN_UART_RX         3           // GPIO 3 - RX0 <- Pi TX
+
 // ============================================================================
 // PIN ASSIGNMENTS (SM-DES-005 §2)
 // ============================================================================
 // X-Axis Stepper
 #define PIN_X_STEP          26          // GPIO 26 - X STEP output
 #define PIN_X_DIR           27          // GPIO 27 - X DIR output
-#define PIN_X_ENDSTOP       34          // GPIO 34 - X Endstop (input-only, NO pull-up)
+#define PIN_X_ENDSTOP       34          // GPIO 34 - X Endstop (input-only, no internal pull-up)
 
 // Y-Axis Stepper
 #define PIN_Y_STEP          14          // GPIO 14 - Y STEP output
 #define PIN_Y_DIR           12          // GPIO 12 - Y DIR output
-#define PIN_Y_ENDSTOP       35          // GPIO 35 - Y Endstop (input-only, NO pull-up)
+#define PIN_Y_ENDSTOP       35          // GPIO 35 - Y Endstop (input-only, no internal pull-up)
+                                        // NOTE: GPIO 12 (Y_DIR) is the MTDI boot-strap pin -
+                                        // any pull-up on that line at reset selects 1.8 V flash
+                                        // voltage and bricks boot. Verify the TMC2208 carrier
+                                        // has no DIR pull-up (SM-DES-005 §2, audit F-13).
 
 // Shared Control
 #define PIN_ENABLE          25          // GPIO 25 - Stepper enable (active LOW)
@@ -39,9 +49,15 @@
 // Servo Gate
 #define PIN_SERVO           13          // GPIO 13 - Servo PWM signal
 
-// Endstop logic: LOW = triggered (external pull-up to 3.3V, switch to GND)
-#define ENDSTOP_TRIGGERED   LOW
-#define ENDSTOP_OPEN        HIGH
+// Endstop logic - NC fail-safe wiring (audit F-8, 2026-07-13):
+//   switch COM -> GND, NC contact -> GPIO, external 10k pull-up to 3.3V.
+//   At rest the closed NC contact holds the pin LOW; a lever press opens
+//   the contact and the pull-up takes the pin HIGH = triggered.
+//   A broken wire or unplugged connector also reads HIGH = triggered,
+//   so wiring faults announce themselves instead of hiding (the old NO
+//   wiring read a broken wire as "never triggered").
+#define ENDSTOP_TRIGGERED   HIGH
+#define ENDSTOP_OPEN        LOW
 
 // ============================================================================
 // MOTION PARAMETERS (SM-DES-007 §4.4)
@@ -63,6 +79,10 @@
 #define HOMING_SLOW_MM_S    2.0f        // Slow re-approach speed: 2 mm/s
 #define HOMING_BACKOFF_MM   5.0f        // Back-off distance after trigger: 5 mm
 #define HOMING_TIMEOUT_MS   30000       // Max time for homing: 30 seconds
+#define HOMING_RELEASE_WAIT_MS 200      // Max wait for debounced endstop release
+                                        // after backoff; still-triggered past this
+                                        // = jammed lever/striker or (NC) broken
+                                        // wire -> homing error (audit F-8)
 
 // ============================================================================
 // GANTRY TRAVEL LIMITS (SM-DES-004 Mechanical Design)

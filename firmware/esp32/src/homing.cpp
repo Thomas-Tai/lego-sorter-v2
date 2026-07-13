@@ -121,6 +121,28 @@ bool HomingManager::update() {
             // Wait for backoff to complete
             if (!stepper.isMoving()) {
                 delay(100);  // Brief pause
+
+                // After a 5 mm backoff the switch must read released
+                // (debounced, so poll briefly). Still-triggered here means
+                // a jammed lever/striker or, with NC wiring, a broken wire
+                // faking a permanent trigger - the trigger position is
+                // untrustworthy either way.
+                uint32_t releaseWaitStart = millis();
+                bool released = false;
+                while (millis() - releaseWaitStart < HOMING_RELEASE_WAIT_MS) {
+                    endstops.update();
+                    if (!endstops.isXTriggered()) {
+                        released = true;
+                        break;
+                    }
+                    delay(1);
+                }
+                if (!released) {
+                    phase = HomingPhase::ERROR;
+                    homingActive = false;
+                    return false;
+                }
+
                 phase = HomingPhase::X_SLOW_APPROACH;
                 startHomeMove('X', HOMING_SLOW_MM_S * 60.0f);
             }
@@ -210,6 +232,24 @@ bool HomingManager::update() {
         case HomingPhase::Y_BACKOFF: {
             if (!stepper.isMoving()) {
                 delay(100);
+
+                // Same release verification as X_BACKOFF
+                uint32_t releaseWaitStart = millis();
+                bool released = false;
+                while (millis() - releaseWaitStart < HOMING_RELEASE_WAIT_MS) {
+                    endstops.update();
+                    if (!endstops.isYTriggered()) {
+                        released = true;
+                        break;
+                    }
+                    delay(1);
+                }
+                if (!released) {
+                    phase = HomingPhase::ERROR;
+                    homingActive = false;
+                    return false;
+                }
+
                 phase = HomingPhase::Y_SLOW_APPROACH;
                 startHomeMove('Y', HOMING_SLOW_MM_S * 60.0f);
             }
