@@ -13,6 +13,7 @@
 namespace stepper_stub {
 
 int beginCalls = 0;
+int enableCalls = 0;
 int startMoveCalls = 0;
 int stopCalls = 0;
 int resetPositionCalls = 0;
@@ -26,6 +27,7 @@ bool movingFlag = false;
 
 void reset() {
     beginCalls = 0;
+    enableCalls = 0;
     startMoveCalls = 0;
     stopCalls = 0;
     resetPositionCalls = 0;
@@ -68,6 +70,11 @@ StepperDriver::StepperDriver()
 
 void StepperDriver::begin() {
     stepper_stub::beginCalls++;
+}
+
+void StepperDriver::enable() {
+    stepper_stub::enableCalls++;
+    enabled = true;
 }
 
 bool StepperDriver::startMove(float dx, float dy, float feedrate) {
