@@ -3,8 +3,9 @@
  * @brief Native-build shim standing in for the ESP32 Arduino core.
  *
  * Used only by [env:native] (pio test -e native). Provides just enough of
- * the Arduino surface for protocol.cpp / scurve.cpp / motion_planner.cpp
- * to compile on a desktop toolchain. Never included in the esp32dev build.
+ * the Arduino surface for protocol.cpp / scurve.cpp / motion_planner.cpp /
+ * homing.cpp to compile on a desktop toolchain. Never included in the
+ * esp32dev build.
  */
 
 #ifndef ARDUINO_NATIVE_SHIM_H
@@ -28,6 +29,8 @@
 typedef struct hw_timer_s hw_timer_t;
 
 inline void delay(unsigned long) {}
+inline void delayMicroseconds(unsigned int) {}
+inline void digitalWrite(int, int) {}
 
 inline unsigned long millis() {
     static unsigned long fakeMillis = 0;

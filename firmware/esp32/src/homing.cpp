@@ -90,7 +90,7 @@ bool HomingManager::update() {
             
             // Start fast approach
             startHomeMove('X', HOMING_FAST_MM_S * 60.0f);
-            
+
             // Wait for endstop trigger
             while (stepper.isMoving()) {
                 endstops.update();
@@ -100,7 +100,17 @@ bool HomingManager::update() {
                 }
                 delay(1);
             }
-            
+
+            // The loop also exits when the move runs its full travel without
+            // contact (dead switch / broken wire) - that must be an error,
+            // not a silent fall-through.
+            endstops.update();
+            if (!endstops.isXTriggered()) {
+                phase = HomingPhase::ERROR;
+                homingActive = false;
+                return false;
+            }
+
             // Move to backoff phase
             phase = HomingPhase::X_BACKOFF;
             startBackoffMove('X', HOMING_BACKOFF_MM);
@@ -127,7 +137,15 @@ bool HomingManager::update() {
                 }
                 delay(1);
             }
-            
+
+            // Verify the endstop actually fired before declaring X homed
+            endstops.update();
+            if (!endstops.isXTriggered()) {
+                phase = HomingPhase::ERROR;
+                homingActive = false;
+                return false;
+            }
+
             // X is homed
             phase = HomingPhase::X_DONE;
             
@@ -165,7 +183,7 @@ bool HomingManager::update() {
             
             // Start fast approach
             startHomeMove('Y', HOMING_FAST_MM_S * 60.0f);
-            
+
             // Wait for endstop trigger
             while (stepper.isMoving()) {
                 endstops.update();
@@ -175,7 +193,15 @@ bool HomingManager::update() {
                 }
                 delay(1);
             }
-            
+
+            // Full travel without contact = dead switch / broken wire
+            endstops.update();
+            if (!endstops.isYTriggered()) {
+                phase = HomingPhase::ERROR;
+                homingActive = false;
+                return false;
+            }
+
             phase = HomingPhase::Y_BACKOFF;
             startBackoffMove('Y', HOMING_BACKOFF_MM);
             return false;
@@ -199,7 +225,17 @@ bool HomingManager::update() {
                 }
                 delay(1);
             }
-            
+
+            // Verify the endstop actually fired before declaring home and
+            // zeroing position - the old fall-through here reset position
+            // at the crash location after a full-travel ram
+            endstops.update();
+            if (!endstops.isYTriggered()) {
+                phase = HomingPhase::ERROR;
+                homingActive = false;
+                return false;
+            }
+
             // Homing complete
             phase = HomingPhase::COMPLETE;
             homingActive = false;

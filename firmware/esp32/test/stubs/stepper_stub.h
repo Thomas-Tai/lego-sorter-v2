@@ -14,6 +14,7 @@
 namespace stepper_stub {
 
 extern int beginCalls;
+extern int enableCalls;
 extern int startMoveCalls;
 extern int stopCalls;
 extern int resetPositionCalls;
