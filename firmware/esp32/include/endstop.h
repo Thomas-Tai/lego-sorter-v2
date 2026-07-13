@@ -7,7 +7,9 @@
  * 
  * Note: GPIO 34 and 35 are input-only with no internal pull-ups.
  * External 10kΩ pull-ups to 3.3V are required.
- * Endstop triggered = LOW (switch connects to GND)
+ * NC fail-safe wiring (audit F-8): COM to GND, NC contact to GPIO.
+ * Endstop triggered = HIGH (lever press opens the NC contact; a broken
+ * wire also reads HIGH, so wiring faults announce themselves)
  * 
  * @version 1.0
  * @date 2026-03-10

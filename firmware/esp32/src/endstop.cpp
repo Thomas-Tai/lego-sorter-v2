@@ -4,11 +4,12 @@
  * 
  * Implements debounced endstop reading per SM-DES-007 §8.
  * 
- * Endstop wiring (SM-DES-005 §6.2):
+ * Endstop wiring (SM-DES-005 §6.2, NC fail-safe per audit F-8):
  *   - GPIO 34 (X_ENDSTOP) and GPIO 35 (Y_ENDSTOP) are input-only
  *   - External 10kΩ pull-up to 3.3V
- *   - Switch connects to GND when triggered
- *   - LOW = triggered, HIGH = open
+ *   - Switch COM to GND, NC contact to GPIO: closed at rest (pin LOW),
+ *     opens when the lever is pressed (pull-up takes pin HIGH)
+ *   - HIGH = triggered, LOW = open; a broken wire reads HIGH = triggered
  */
 
 #include "endstop.h"
@@ -41,7 +42,7 @@ void EndstopManager::begin() {
     xLastRaw = digitalRead(PIN_X_ENDSTOP);
     yLastRaw = digitalRead(PIN_Y_ENDSTOP);
     
-    // Endstop triggered = LOW
+    // Triggered when the pin reads ENDSTOP_TRIGGERED (HIGH under NC wiring)
     xTriggeredState = (xLastRaw == ENDSTOP_TRIGGERED);
     yTriggeredState = (yLastRaw == ENDSTOP_TRIGGERED);
     
@@ -97,7 +98,7 @@ bool EndstopManager::debounce(int pin, bool currentState, bool& lastRaw, uint32_
     // Check if debounce period has elapsed
     if ((now - debounceStart) >= ENDSTOP_DEBOUNCE_MS) {
         // Update stable state
-        // Endstop triggered = LOW (ENDSTOP_TRIGGERED)
+        // Triggered when the pin reads ENDSTOP_TRIGGERED (HIGH under NC wiring)
         return (raw == ENDSTOP_TRIGGERED);
     }
     
