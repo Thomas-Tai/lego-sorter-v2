@@ -219,6 +219,52 @@ Run tests:
 python -m pytest
 ```
 
+## 🔩 Hardware Interface Ledger & Spatial Checks
+
+The mechanical (CAD) side of the machine is kept honest by an **executable
+interface ledger**: `hardware/interfaces.py` is the single source of truth for
+every cross-station dimension (SM-DES-004 §2.2b in code). Each record carries its
+`value`, `unit`, `lock_id`, and the CAD files that must restate it. Two checks
+guard it.
+
+**Tier A — schema & purity (runs in CI, nothing to do by hand).**
+`tests/test_interface_ledger.py` proves the ledger is well-formed and contains
+only literal data — no imports, no computed values, no duplicate keys.
+
+**Tier B — reconcile vs the CAD (local, before a modeling session).** The CAD
+skeleton lives outside this repo in a machine-specific `Hardware/` tree whose
+SolidWorks-linked `*_locals.txt` files *restate* the interface dims. Reconcile
+checks they still agree with the ledger:
+
+```bash
+python -m tools.reconcile_interfaces --hardware-root "<path>/Hardware"
+```
+
+- **exit 0** — clean, proceed.
+- **exit 1** — drift: a CAD file restates a number that disagrees with the
+  ledger. Fix the drifted `*_locals.txt` (the locals are the source of truth —
+  edit the file, reload in SolidWorks), then re-run. To proceed anyway (rare),
+  pass an audited `--allow-drift --reason "..."` — the reason is echoed for the
+  session note.
+
+> Editing a locked value — in `hardware/interfaces.py` **or** a `*_locals.txt` —
+> is a design-lock change: it needs the same approval as amending SM-DES-004. A
+> commit is not authority to move a locked interface dim.
+
+**Massing model (optional, local-only).** `massing/` assembles a rough 3-D solid
+from the ledger and runs four static spatial checks — clash, reach, alignment,
+stack-up — to catch interference and reach errors before precise modeling. The
+pure check-math is CI-tested; the 3-D build needs `build123d` in a dedicated venv
+(**not** in CI or `requirements.txt`):
+
+```bash
+python -m massing.run_checks                          # the 4 checks, text report
+python -m massing.smoke_build --out-dir build/massing # STEP + GLB (needs build123d)
+```
+
+See [`tools/README.md`](tools/README.md) and [`massing/README.md`](massing/README.md)
+for details.
+
 ## 📚 Documentation
 
 ### Guides
