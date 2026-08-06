@@ -34,8 +34,12 @@ def test_every_binding_token_is_known() -> None:
 
 
 def test_seed_covers_verified_restatements() -> None:
-    """D_Z_BELT is restated in globals + S1a + S1b (verified in the files)."""
-    assert LEDGER["D_Z_BELT"]["bindings"] == ["globals", "S1a", "S1b"]
+    """D_Z_BELT is restated in globals + S1a + S1b + S5 (verified in the files).
+
+    S5 was added to the coverage by the M4 audit (Task 7): s5_gantry_locals
+    restates D_Z_BELT = 75 as the belt-height reference for the gantry stack.
+    """
+    assert LEDGER["D_Z_BELT"]["bindings"] == ["globals", "S1a", "S1b", "S5"]
 
 
 def test_real_ledger_is_pure_data() -> None:
