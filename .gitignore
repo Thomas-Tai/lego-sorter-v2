@@ -4,6 +4,9 @@ __pycache__/
 *.pyo
 *.pyd
 
+# Build output (local massing STEP/GLB smoke, not tracked)
+build/
+
 # Virtual Environment
 venv/
 .venv/

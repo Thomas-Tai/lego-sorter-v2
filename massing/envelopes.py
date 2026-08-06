@@ -15,9 +15,12 @@ from __future__ import annotations
 from massing.model import AlignmentPair, Box, Machine, Station
 
 # role -> ledger key name. THE reconciliation point.
+# NOTE: this is the lean-MVP set actually consumed by build_machine (22 keys).
+# Phase-2-reserved keys dropped from the MVP gate (would over-block the real
+# run on dims nothing reads yet): base-plate footprint (D_BASE_W, D_BASE_D),
+# bins-as-clash-boxes (D_BIN_L, D_BIN_W, D_BIN_H), camera height (D_CAMERA_H),
+# head inlet (D_HEAD_INLET). Re-add here when those checks are wired.
 KEYS: dict[str, str] = {
-    "base_w": "D_BASE_W",
-    "base_d": "D_BASE_D",
     "gantry_x_max": "D_GANTRY_X_MAX",
     "gantry_y_max": "D_GANTRY_Y_MAX",
     "z_belt": "D_Z_BELT",
@@ -28,9 +31,6 @@ KEYS: dict[str, str] = {
     "grid_origin_y": "D_GRID_ORIGIN_Y",
     "grid_pitch_x": "D_GRID_PITCH_X",
     "grid_pitch_y": "D_GRID_PITCH_Y",
-    "bin_l": "D_BIN_L",
-    "bin_w": "D_BIN_W",
-    "bin_h": "D_BIN_H",
     "overflow_x": "D_OVERFLOW_X",
     "overflow_y": "D_OVERFLOW_Y",
     "x_hopper": "D_X_HOPPER",
@@ -39,9 +39,7 @@ KEYS: dict[str, str] = {
     "x_camera": "D_X_CAMERA",
     "z_hopper_outlet": "D_Z_HOPPER_OUTLET",
     "hopper_inlet_dia": "D_HOPPER_INLET_DIA",
-    "camera_h": "D_CAMERA_H",
     "z_camera": "D_Z_CAMERA",
-    "head_inlet": "D_HEAD_INLET",
     "conveyor_l": "D_CONVEYOR_L",
     "conveyor_w": "D_CONVEYOR_W",
     "vfeeder_l": "D_VFEEDER_L",
@@ -145,6 +143,9 @@ def build_machine(
     )
 
     # --- Alignment: cross-key coincidences (offset 0 on a clean ledger) ---
+    # Only genuine cross-key checks belong here. The belt-centerline Y checks
+    # were self-comparing (a == b, always PASS) and are deferred to Phase 2,
+    # which needs per-station Y anchors not carried in the MVP ledger.
     belt_infeed_x = x_conv_r - conv_l
     alignment_pairs = [
         AlignmentPair(
@@ -152,20 +153,6 @@ def build_machine(
             (x_vf, 0.0, 0.0),
             (belt_infeed_x, 0.0, 0.0),
             ("x",),
-            align_tol,
-        ),
-        AlignmentPair(
-            "feeder_out<->belt_centerline",
-            (x_vf, 0.0, 0.0),
-            (x_vf, 0.0, 0.0),
-            ("y",),
-            align_tol,
-        ),
-        AlignmentPair(
-            "camera<->belt_centerline",
-            (x_cam, 0.0, 0.0),
-            (x_cam, 0.0, 0.0),
-            ("y",),
             align_tol,
         ),
     ]

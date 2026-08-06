@@ -91,3 +91,11 @@ def test_stackup_non_descending_fails() -> None:
     result = check_stackup(m)
     assert result.passed is False
     assert any("NON-DESCENDING" in d for d in result.details)
+
+
+def test_alignment_off_axis_diff_is_suppressed() -> None:
+    # y differs by 50, but the pair only checks x -> the y diff is masked out.
+    m = Machine(
+        alignment_pairs=[AlignmentPair("masked", (0, 0, 0), (0, 50, 0), ("x",), 1.0)]
+    )
+    assert check_alignment(m).passed is True

@@ -10,8 +10,6 @@ from massing.envelopes import KEYS, MissingLedgerKeys, build_machine, required_k
 
 # Role -> value, matching current SW_Design_Guide / seeded ledger numbers.
 _ROLE_VALUES = {
-    "base_w": 1000.0,
-    "base_d": 450.0,
     "gantry_x_max": 355.0,
     "gantry_y_max": 160.0,
     "z_belt": 75.0,
@@ -22,9 +20,6 @@ _ROLE_VALUES = {
     "grid_origin_y": 30.0,
     "grid_pitch_x": 75.0,
     "grid_pitch_y": 55.0,
-    "bin_l": 70.0,
-    "bin_w": 50.0,
-    "bin_h": 35.0,
     "overflow_x": 280.0,
     "overflow_y": 140.0,
     "x_hopper": -502.5,
@@ -33,9 +28,7 @@ _ROLE_VALUES = {
     "x_camera": -132.5,
     "z_hopper_outlet": 93.0,
     "hopper_inlet_dia": 150.0,
-    "camera_h": 150.0,
     "z_camera": 225.0,
-    "head_inlet": 40.0,
     "conveyor_l": 300.0,
     "conveyor_w": 80.0,
     "vfeeder_l": 200.0,
