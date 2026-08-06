@@ -185,3 +185,97 @@ def test_stray_d_name_is_warning(tmp_path: Path) -> None:
     report = reconcile(ledger, _STATIONS, root)
     assert report.drifts == []
     assert ("globals", "D_MYSTERY") in report.strays
+
+
+from tools import reconcile_interfaces
+
+
+def _mk_ledger_files(tmp_path: Path, glob_text: str) -> Path:
+    root = tmp_path / "Hardware"
+    (root / "00").mkdir(parents=True)
+    (root / "00" / "glob.txt").write_text(glob_text, encoding="utf-8")
+    return root
+
+
+def test_cli_exit_0_when_clean(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setattr(
+        reconcile_interfaces,
+        "LEDGER",
+        {
+            "D_BASE_W": {
+                "value": 1000,
+                "unit": "mm",
+                "lock_id": "DL-02/D-10",
+                "bindings": ["globals"],
+            },
+        },
+    )
+    monkeypatch.setattr(reconcile_interfaces, "STATIONS", {"globals": "00/glob.txt"})
+    root = _mk_ledger_files(tmp_path, '"D_BASE_W"= 1000\n')
+    assert reconcile_interfaces.main(["--hardware-root", str(root)]) == 0
+
+
+def test_cli_exit_1_on_drift(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setattr(
+        reconcile_interfaces,
+        "LEDGER",
+        {
+            "D_BASE_W": {
+                "value": 1000,
+                "unit": "mm",
+                "lock_id": "DL-02/D-10",
+                "bindings": ["globals"],
+            },
+        },
+    )
+    monkeypatch.setattr(reconcile_interfaces, "STATIONS", {"globals": "00/glob.txt"})
+    root = _mk_ledger_files(tmp_path, '"D_BASE_W"= 650\n')
+    assert reconcile_interfaces.main(["--hardware-root", str(root)]) == 1
+
+
+def test_cli_allow_drift_needs_reason(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setattr(
+        reconcile_interfaces,
+        "LEDGER",
+        {
+            "D_BASE_W": {
+                "value": 1000,
+                "unit": "mm",
+                "lock_id": "DL-02/D-10",
+                "bindings": ["globals"],
+            },
+        },
+    )
+    monkeypatch.setattr(reconcile_interfaces, "STATIONS", {"globals": "00/glob.txt"})
+    root = _mk_ledger_files(tmp_path, '"D_BASE_W"= 650\n')
+    assert (
+        reconcile_interfaces.main(["--hardware-root", str(root), "--allow-drift"]) == 2
+    )
+
+
+def test_cli_allow_drift_with_reason_exits_0(
+    tmp_path: Path, monkeypatch, capsys
+) -> None:
+    monkeypatch.setattr(
+        reconcile_interfaces,
+        "LEDGER",
+        {
+            "D_BASE_W": {
+                "value": 1000,
+                "unit": "mm",
+                "lock_id": "DL-02/D-10",
+                "bindings": ["globals"],
+            },
+        },
+    )
+    monkeypatch.setattr(reconcile_interfaces, "STATIONS", {"globals": "00/glob.txt"})
+    root = _mk_ledger_files(tmp_path, '"D_BASE_W"= 650\n')
+    code = reconcile_interfaces.main(
+        ["--hardware-root", str(root), "--allow-drift", "--reason", "WIP rebuild"]
+    )
+    assert code == 0
+    assert "WIP rebuild" in capsys.readouterr().out
+
+
+def test_cli_missing_hardware_root_exits_2(tmp_path: Path) -> None:
+    assert reconcile_interfaces.main(["--hardware-root", str(tmp_path / "nope")]) == 2
