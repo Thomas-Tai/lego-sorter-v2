@@ -7,12 +7,38 @@ reconcile() with a CLI. tests/ cover every function.
 from __future__ import annotations
 
 import ast
+import re
+from decimal import Decimal
 from pathlib import Path
 
 ALLOWED_UNITS = {"mm", "deg", "mm^2", "count", "ratio"}
 
 _REQUIRED_KEYS = {"value", "unit", "lock_id", "bindings"}
 _PLACEHOLDER_LOCKS = {"", "todo", "tbd", "fixme", "?", "xxx"}
+
+# Matches exactly `"D_NAME" = <number>` (optionally negative / decimal).
+# The opening quote must be immediately followed by `D_`, so `_D_*` and
+# `"// ..."` never match. An expression RHS (a quote, letter, or paren)
+# fails the numeric group, so only restated literals are captured.
+_INTERFACE_LINE = re.compile(r'^\s*"(D_[A-Za-z0-9_]+)"\s*=\s*(-?\d+(?:\.\d+)?)\s*$')
+
+
+def parse_interface_lines(path: str | Path) -> dict[str, Decimal]:
+    """Return {D_name: Decimal} for restated interface literals in a file.
+
+    Scope (spec §5 / B2): only lines of the form `"D_NAME" = <number>`.
+    Derived Sxx_ expressions, _D_ semi-privates, and "// ..." comment
+    pseudo-entries are skipped. Values are Decimals for exact compare
+    (F3). The file is read with errors="replace" so encoding mojibake in
+    comments cannot crash the parse (B13).
+    """
+    result: dict[str, Decimal] = {}
+    text = Path(path).read_text(encoding="utf-8", errors="replace")
+    for line in text.splitlines():
+        m = _INTERFACE_LINE.match(line)
+        if m:
+            result[m.group(1)] = Decimal(m.group(2))
+    return result
 
 
 def validate_ledger_schema(ledger: dict, stations: dict) -> list[str]:
