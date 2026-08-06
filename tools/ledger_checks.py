@@ -123,6 +123,49 @@ def assert_pure_data(source_path: str | Path) -> list[str]:
     return errors
 
 
+def find_duplicate_dict_keys(source_path: str | Path) -> list[str]:
+    """Return duplicate-key messages for module-level dict literals (empty = clean).
+
+    Python silently keeps only the last value for a repeated dict-literal key,
+    so a copy-paste duplicate in LEDGER or STATIONS would delete an earlier
+    locked record with no runtime error and no schema-check signal -- every
+    other check (validate_ledger_schema, assert_pure_data, the Tier-A tests)
+    runs on the already-collapsed dict, so by the time they see it the shadowed
+    record is gone. This walks the raw AST, before Python evaluates the dict,
+    and flags any key that appears more than once in a top-level `NAME = {...}`
+    (or annotated `NAME: T = {...}`) assignment.
+    """
+    errors: list[str] = []
+    tree = ast.parse(Path(source_path).read_text(encoding="utf-8"))
+    for node in tree.body:
+        if isinstance(node, ast.Assign):
+            value = node.value
+            target = node.targets[0] if node.targets else None
+        elif isinstance(node, ast.AnnAssign):
+            value = node.value
+            target = node.target
+        else:
+            continue
+        if not isinstance(value, ast.Dict):
+            continue
+        dict_name = target.id if isinstance(target, ast.Name) else "<dict>"
+        seen: set[object] = set()
+        for key_node in value.keys:
+            if key_node is None:  # `**spread`: no static key to compare
+                continue
+            try:
+                key = ast.literal_eval(key_node)
+            except (ValueError, SyntaxError, TypeError):
+                continue  # non-literal key: purity guard already forbids it
+            if key in seen:
+                errors.append(
+                    f"line {key_node.lineno}: {dict_name} has duplicate key {key!r}"
+                )
+            else:
+                seen.add(key)
+    return errors
+
+
 @dataclass
 class Drift:
     name: str

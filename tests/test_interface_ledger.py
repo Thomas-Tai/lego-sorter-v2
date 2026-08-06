@@ -9,7 +9,11 @@ from pathlib import Path
 
 from hardware.interfaces import LEDGER, STATIONS
 import hardware.interfaces as interfaces_mod
-from tools.ledger_checks import validate_ledger_schema, assert_pure_data
+from tools.ledger_checks import (
+    validate_ledger_schema,
+    assert_pure_data,
+    find_duplicate_dict_keys,
+)
 
 
 def test_ledger_schema_is_valid() -> None:
@@ -46,6 +50,36 @@ def test_real_ledger_is_pure_data() -> None:
     """hardware/interfaces.py contains only literal data (F4)."""
     errors = assert_pure_data(interfaces_mod.__file__)
     assert errors == [], "purity errors:\n" + "\n".join(errors)
+
+
+def test_real_ledger_has_no_duplicate_keys() -> None:
+    """No hand-edit has silently shadowed a locked LEDGER/STATIONS record.
+
+    Python drops the earlier value on a repeated dict-literal key, so this
+    guards against a copy-paste duplicate deleting a locked interface with
+    no other signal (every runtime check sees the already-collapsed dict).
+    """
+    errors = find_duplicate_dict_keys(interfaces_mod.__file__)
+    assert errors == [], "duplicate keys:\n" + "\n".join(errors)
+
+
+def test_duplicate_key_detector_flags_a_shadowed_key(tmp_path: Path) -> None:
+    """Adversarial: a repeated key is caught before Python collapses the dict."""
+    dup = tmp_path / "dup.py"
+    dup.write_text(
+        'LEDGER = {\n    "D_X": {"value": 1},\n    "D_X": {"value": 2},\n}\n',
+        encoding="utf-8",
+    )
+    errors = find_duplicate_dict_keys(dup)
+    assert len(errors) == 1 and "D_X" in errors[0]
+
+
+def test_duplicate_key_detector_passes_a_clean_dict(tmp_path: Path) -> None:
+    clean = tmp_path / "clean.py"
+    clean.write_text(
+        'LEDGER = {"D_X": {"value": 1}, "D_Y": {"value": 2}}\n', encoding="utf-8"
+    )
+    assert find_duplicate_dict_keys(clean) == []
 
 
 def test_guard_rejects_import(tmp_path: Path) -> None:
