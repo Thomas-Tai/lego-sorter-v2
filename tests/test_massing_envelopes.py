@@ -22,7 +22,6 @@ _ROLE_VALUES = {
     "grid_pitch_y": 55.0,
     "overflow_x": 280.0,
     "overflow_y": 140.0,
-    "x_hopper": -502.5,
     "x_vfeeder_out": -332.5,
     "x_conveyor_right": -32.5,
     "x_camera": -132.5,

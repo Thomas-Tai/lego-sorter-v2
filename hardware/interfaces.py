@@ -235,6 +235,31 @@ LEDGER = {
         "lock_id": "SM-DES-004 §2.2b",
         "bindings": ["globals", "S1a"],
     },
+    # --- Locked station master-X positions (SM-DES-004 §2.2b DL closures) ---
+    # These three are LOCKED interfaces (S1b reference comment: "three locked
+    # interfaces ... S1a feeder X=-332.5, S2 camera X=-132.5, S1b master
+    # X=-32.5", already flagged to the SM-DES-004 owner for a ledger-wording
+    # update). Published here for the first time. bindings=[] (unconsumed):
+    # the locals restate them under Sxx_ local names (e.g. S1B_MASTER_X_OFFSET),
+    # not as published D_X_* lines -- mirroring to D_X_* is a future gated edit.
+    "D_X_VFEEDER_OUT": {
+        "value": -332.5,
+        "unit": "mm",
+        "lock_id": "DL-03/D-8",
+        "bindings": [],
+    },
+    "D_X_CAMERA": {
+        "value": -132.5,
+        "unit": "mm",
+        "lock_id": "DL-04",
+        "bindings": [],
+    },
+    "D_X_CONVEYOR_R": {
+        "value": -32.5,
+        "unit": "mm",
+        "lock_id": "SM-DES-004 §2.2b",
+        "bindings": [],
+    },
     # --- Hopper (SM-DES-004 §3) ---
     "D_HOPPER_OUTLET_W": {
         "value": 28.0,

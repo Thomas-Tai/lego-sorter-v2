@@ -15,25 +15,31 @@ from __future__ import annotations
 from massing.model import AlignmentPair, Box, Machine, Station
 
 # role -> ledger key name. THE reconciliation point.
-# NOTE: this is the lean-MVP set actually consumed by build_machine (22 keys).
+# NOTE: this is the lean-MVP set actually consumed by build_machine (21 keys),
+# reconciled to the real C1 ledger names on 2026-08-06 (plan Task 7 done):
+#   z_gate -> D_Z_GATE_BOTTOM, grid_origin_x/y -> D_GRID_X/Y_OFFSET,
+#   grid_pitch_x/y -> D_BIN_PITCH_X/Y (globals/ledger names differ from the
+#   originally-assumed ones). The three locked station master-X positions
+#   (D_X_VFEEDER_OUT / D_X_CAMERA / D_X_CONVEYOR_R) are now published in the
+#   ledger. The hopper X is NOT a locked interface (no D_X_HOPPER) -- it is
+#   derived below from the V-feeder inlet, so it is not a ledger key.
 # Phase-2-reserved keys dropped from the MVP gate (would over-block the real
 # run on dims nothing reads yet): base-plate footprint (D_BASE_W, D_BASE_D),
-# bins-as-clash-boxes (D_BIN_L, D_BIN_W, D_BIN_H), camera height (D_CAMERA_H),
+# bins-as-clash-boxes (D_BIN_W, D_BIN_D, D_BIN_H), camera height (D_CAMERA_H),
 # head inlet (D_HEAD_INLET). Re-add here when those checks are wired.
 KEYS: dict[str, str] = {
     "gantry_x_max": "D_GANTRY_X_MAX",
     "gantry_y_max": "D_GANTRY_Y_MAX",
     "z_belt": "D_Z_BELT",
     "z_funnel_lip": "D_Z_FUNNEL_LIP",
-    "z_gate": "D_Z_GATE",
+    "z_gate": "D_Z_GATE_BOTTOM",
     "z_bin_rim": "D_Z_BIN_RIM",
-    "grid_origin_x": "D_GRID_ORIGIN_X",
-    "grid_origin_y": "D_GRID_ORIGIN_Y",
-    "grid_pitch_x": "D_GRID_PITCH_X",
-    "grid_pitch_y": "D_GRID_PITCH_Y",
+    "grid_origin_x": "D_GRID_X_OFFSET",
+    "grid_origin_y": "D_GRID_Y_OFFSET",
+    "grid_pitch_x": "D_BIN_PITCH_X",
+    "grid_pitch_y": "D_BIN_PITCH_Y",
     "overflow_x": "D_OVERFLOW_X",
     "overflow_y": "D_OVERFLOW_Y",
-    "x_hopper": "D_X_HOPPER",
     "x_vfeeder_out": "D_X_VFEEDER_OUT",
     "x_conveyor_right": "D_X_CONVEYOR_R",
     "x_camera": "D_X_CAMERA",
@@ -55,6 +61,8 @@ _HOPPER_BODY_H = 100.0  # inlet top ~Z193 - outlet ~Z93 (SW_Design_Guide)
 _VFEEDER_H = 60.0  # rough channel body height
 _CONVEYOR_FRAME_H = 30.0  # belt structure below the belt surface
 _CAMERA_MAST_FOOT = 80.0  # rough mast/LED-ring footprint side
+_HOPPER_X_INSET = 30.0  # hopper center ~30 mm inboard of the V-feeder inlet
+#                         end (rough placement, NOT a locked interface)
 
 
 class MissingLedgerKeys(Exception):
@@ -79,13 +87,15 @@ def build_machine(
             "ledger is missing required interface keys: " + ", ".join(missing)
         )
 
-    x_hopper = _v(ledger, "x_hopper")
     x_vf = _v(ledger, "x_vfeeder_out")
     x_conv_r = _v(ledger, "x_conveyor_right")
     x_cam = _v(ledger, "x_camera")
     conv_l = _v(ledger, "conveyor_l")
     conv_w = _v(ledger, "conveyor_w")
     vf_l = _v(ledger, "vfeeder_l")
+    # Hopper X is a rough placement above the V-feeder inlet end (not a locked
+    # interface -> not a ledger key); reproduces the prior massing estimate.
+    x_hopper = (x_vf - vf_l) + _HOPPER_X_INSET
     dia = _v(ledger, "hopper_inlet_dia")
     z_belt = _v(ledger, "z_belt")
     z_hop = _v(ledger, "z_hopper_outlet")
