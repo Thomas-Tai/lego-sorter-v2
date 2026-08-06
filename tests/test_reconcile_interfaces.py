@@ -7,7 +7,7 @@ Hardware/ is the SM-IMP-009 SETUP pre-flight, not a CI job.
 from decimal import Decimal
 from pathlib import Path
 
-from tools.ledger_checks import parse_interface_lines
+from tools.ledger_checks import parse_interface_lines, reconcile, ReconcileReport
 
 
 def _write(path: Path, text: str) -> Path:
@@ -74,3 +74,114 @@ def test_decimal_preserves_75_vs_75_0(tmp_path: Path) -> None:
     f = _write(tmp_path / "l.txt", '"D_A" = 75\n"D_B" = 75.0\n')
     parsed = parse_interface_lines(f)
     assert parsed["D_A"] == parsed["D_B"]  # Decimal("75") == Decimal("75.0")
+
+
+def _hardware(tmp_path: Path, files: dict[str, str]) -> Path:
+    """Build a fake Hardware/ root: {relpath: file-text}."""
+    root = tmp_path / "Hardware"
+    for rel, text in files.items():
+        p = root / rel
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(text, encoding="utf-8")
+    return root
+
+
+_STATIONS = {
+    "globals": "00/glob.txt",
+    "S1a": "S1a/loc.txt",
+}
+
+
+def test_clean_reconcile_has_no_drift(tmp_path: Path) -> None:
+    ledger = {
+        "D_Z_BELT": {
+            "value": 75.0,
+            "unit": "mm",
+            "lock_id": "IF-24",
+            "bindings": ["globals", "S1a"],
+        },
+    }
+    root = _hardware(
+        tmp_path,
+        {
+            "00/glob.txt": '"D_Z_BELT"= 75.0\n',
+            "S1a/loc.txt": '"D_Z_BELT" = 75\n',  # 75 vs 75.0 must still match (F3)
+        },
+    )
+    report = reconcile(ledger, _STATIONS, root)
+    assert report.drifts == []
+    assert report.has_blocking is False
+
+
+def test_value_mismatch_is_drift(tmp_path: Path) -> None:
+    ledger = {
+        "D_BASE_W": {
+            "value": 1000,
+            "unit": "mm",
+            "lock_id": "DL-02/D-10",
+            "bindings": ["globals"],
+        },
+    }
+    root = _hardware(tmp_path, {"00/glob.txt": '"D_BASE_W"= 650\n'})
+    report = reconcile(ledger, _STATIONS, root)
+    assert report.has_blocking is True
+    assert report.drifts[0].name == "D_BASE_W"
+    assert report.drifts[0].found == "650"
+    assert report.drifts[0].expected == "1000"
+
+
+def test_declared_but_missing_is_drift(tmp_path: Path) -> None:
+    ledger = {
+        "D_Z_BELT": {
+            "value": 75.0,
+            "unit": "mm",
+            "lock_id": "IF-24",
+            "bindings": ["globals", "S1a"],
+        },
+    }
+    root = _hardware(
+        tmp_path,
+        {
+            "00/glob.txt": '"D_Z_BELT"= 75.0\n',
+            "S1a/loc.txt": '"S1A_V_ANGLE" = 60.0\n',  # D_Z_BELT absent here
+        },
+    )
+    report = reconcile(ledger, _STATIONS, root)
+    assert report.has_blocking is True
+    assert report.drifts[0].location == "S1a"
+    assert report.drifts[0].found is None
+
+
+def test_unconsumed_interface_is_informational(tmp_path: Path) -> None:
+    ledger = {
+        "D_CAMERA_H": {
+            "value": 150.0,
+            "unit": "mm",
+            "lock_id": "SM-DES-004 §2.3",
+            "bindings": [],
+        },
+    }
+    root = _hardware(tmp_path, {"00/glob.txt": "\n"})
+    report = reconcile(ledger, _STATIONS, root)
+    assert report.drifts == []
+    assert report.unconsumed == ["D_CAMERA_H"]
+
+
+def test_stray_d_name_is_warning(tmp_path: Path) -> None:
+    ledger = {
+        "D_Z_BELT": {
+            "value": 75.0,
+            "unit": "mm",
+            "lock_id": "IF-24",
+            "bindings": ["globals"],
+        },
+    }
+    root = _hardware(
+        tmp_path,
+        {
+            "00/glob.txt": '"D_Z_BELT"= 75.0\n"D_MYSTERY"= 42.0\n',
+        },
+    )
+    report = reconcile(ledger, _STATIONS, root)
+    assert report.drifts == []
+    assert ("globals", "D_MYSTERY") in report.strays

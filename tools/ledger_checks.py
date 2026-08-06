@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import ast
 import re
+from dataclasses import dataclass, field
 from decimal import Decimal
 from pathlib import Path
 
@@ -118,3 +119,73 @@ def assert_pure_data(source_path: str | Path) -> list[str]:
             continue
         errors.append(f"line {node.lineno}: disallowed statement {type(node).__name__}")
     return errors
+
+
+@dataclass
+class Drift:
+    name: str
+    location: str
+    expected: str
+    found: str | None  # None == name absent at this location
+
+
+@dataclass
+class ReconcileReport:
+    drifts: list[Drift] = field(default_factory=list)
+    unconsumed: list[str] = field(default_factory=list)
+    strays: list[tuple[str, str]] = field(default_factory=list)
+
+    @property
+    def has_blocking(self) -> bool:
+        return bool(self.drifts)
+
+
+def reconcile(
+    ledger: dict, stations: dict, hardware_root: str | Path
+) -> ReconcileReport:
+    """Reconcile every restated D_* number against the ledger authority.
+
+    hardware_root is the machine-specific Hardware/ path (config, not git).
+    A station file that does not exist parses as empty, so declared
+    bindings to it surface as declared-but-missing drifts.
+    """
+    root = Path(hardware_root)
+    parsed: dict[str, dict[str, Decimal]] = {}
+    for token, rel in stations.items():
+        p = root / rel
+        parsed[token] = parse_interface_lines(p) if p.exists() else {}
+
+    report = ReconcileReport()
+    for name, rec in ledger.items():
+        bindings = rec["bindings"]
+        if not bindings:
+            report.unconsumed.append(name)
+            continue
+        expected = Decimal(str(rec["value"]))
+        for token in bindings:
+            found = parsed.get(token, {}).get(name)
+            if found is None:
+                report.drifts.append(
+                    Drift(
+                        name=name,
+                        location=token,
+                        expected=str(rec["value"]),
+                        found=None,
+                    )
+                )
+            elif found != expected:
+                report.drifts.append(
+                    Drift(
+                        name=name,
+                        location=token,
+                        expected=str(rec["value"]),
+                        found=format(found, "f"),
+                    )
+                )
+
+    ledger_names = set(ledger)
+    for token, values in parsed.items():
+        for name in values:
+            if name not in ledger_names:
+                report.strays.append((token, name))
+    return report
