@@ -30,11 +30,13 @@ def parse_interface_lines(path: str | Path) -> dict[str, Decimal]:
     Scope (spec §5 / B2): only lines of the form `"D_NAME" = <number>`.
     Derived Sxx_ expressions, _D_ semi-privates, and "// ..." comment
     pseudo-entries are skipped. Values are Decimals for exact compare
-    (F3). The file is read with errors="replace" so encoding mojibake in
-    comments cannot crash the parse (B13).
+    (F3). The file is read as utf-8-sig so a leading BOM (SolidWorks/
+    Windows exports commonly emit one) does not break the anchor on the
+    first line, with errors="replace" so encoding mojibake in comments
+    cannot crash the parse (B13).
     """
     result: dict[str, Decimal] = {}
-    text = Path(path).read_text(encoding="utf-8", errors="replace")
+    text = Path(path).read_text(encoding="utf-8-sig", errors="replace")
     for line in text.splitlines():
         m = _INTERFACE_LINE.match(line)
         if m:

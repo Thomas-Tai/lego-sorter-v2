@@ -36,6 +36,17 @@ def test_handles_globals_no_space_before_equals(tmp_path: Path) -> None:
     assert parse_interface_lines(f) == {"D_BASE_W": Decimal("1000")}
 
 
+def test_tolerates_leading_utf8_bom(tmp_path: Path) -> None:
+    # SolidWorks/Windows exports commonly prepend a UTF-8 BOM; it must not
+    # break the anchor on the first D_* line (else that dim reads absent).
+    f = tmp_path / "g.txt"
+    f.write_bytes(b"\xef\xbb\xbf" + b'"D_BASE_W"= 1000\n"D_BASE_D"= 450.0\n')
+    assert parse_interface_lines(f) == {
+        "D_BASE_W": Decimal("1000"),
+        "D_BASE_D": Decimal("450.0"),
+    }
+
+
 def test_skips_underscore_d_semi_private(tmp_path: Path) -> None:
     f = _write(tmp_path / "g.txt", '"_D_X_ENDSTOP_X"= 32.5\n')
     assert parse_interface_lines(f) == {}
