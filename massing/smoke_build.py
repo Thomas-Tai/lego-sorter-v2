@@ -47,11 +47,25 @@ def main(argv: list[str] | None = None) -> int:
         f"STEP re-import X-span={span:.2f} -> {'PASS' if ok else 'FAIL'}"
     )
 
-    write_viewer(
-        glb_path.read_bytes(), out / "massing.html", Path("massing/viewer/vendor")
-    )
     print(format_report(build_and_check(LEDGER)))
-    print(f"Viewer: {out / 'massing.html'}")
+
+    # Optional HTML viewer: needs the local three.js vendor (Task 5 deferred,
+    # not committed, and not required for the STEP/GLB/R7 deliverables above).
+    # Skip -- rather than crash -- when it is absent, so the smoke run still
+    # succeeds on its real outputs.
+    vendor_dir = Path("massing/viewer/vendor")
+    viewer_html = out / "massing.html"
+    have_vendor = (vendor_dir / "three.min.js").exists() and (
+        vendor_dir / "GLTFLoader.js"
+    ).exists()
+    if have_vendor:
+        write_viewer(glb_path.read_bytes(), viewer_html, vendor_dir)
+        print(f"Viewer: {viewer_html}")
+    else:
+        print(
+            f"Viewer: SKIPPED -- three.js vendor not present at {vendor_dir} "
+            "(deferred; STEP/GLB/R7 above are the real artifacts)."
+        )
     return 0 if ok else 1
 
 
