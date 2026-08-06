@@ -6,6 +6,9 @@ reconcile() with a CLI. tests/ cover every function.
 
 from __future__ import annotations
 
+import ast
+from pathlib import Path
+
 ALLOWED_UNITS = {"mm", "deg", "mm^2", "count", "ratio"}
 
 _REQUIRED_KEYS = {"value", "unit", "lock_id", "bindings"}
@@ -55,4 +58,37 @@ def validate_ledger_schema(ledger: dict, stations: dict) -> list[str]:
         for token in bindings:
             if token not in stations:
                 errors.append(f"{name}: binding {token!r} not a known station")
+    return errors
+
+
+def assert_pure_data(source_path: str | Path) -> list[str]:
+    """Return purity violations for a data-only module (empty = pure).
+
+    Allowed top-level statements: a string docstring (Expr wrapping a str
+    constant) and assignments (Assign / AnnAssign) whose right-hand side
+    is ast.literal_eval-able (numbers, strings, bools, None, and dict/
+    list/tuple/set of those). Everything else -- imports, calls, BinOp,
+    Name references, def/class -- is a violation. This is what keeps the
+    authority trivially diffable and free of hidden derived values (F4).
+    """
+    errors: list[str] = []
+    tree = ast.parse(Path(source_path).read_text(encoding="utf-8"))
+    for node in tree.body:
+        if (
+            isinstance(node, ast.Expr)
+            and isinstance(node.value, ast.Constant)
+            and isinstance(node.value.value, str)
+        ):
+            continue  # module docstring
+        if isinstance(node, (ast.Assign, ast.AnnAssign)):
+            rhs = node.value
+            if rhs is None:
+                errors.append(f"line {node.lineno}: annotation without a value")
+                continue
+            try:
+                ast.literal_eval(rhs)
+            except (ValueError, SyntaxError, TypeError):
+                errors.append(f"line {node.lineno}: non-literal right-hand side")
+            continue
+        errors.append(f"line {node.lineno}: disallowed statement {type(node).__name__}")
     return errors
