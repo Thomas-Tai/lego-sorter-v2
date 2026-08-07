@@ -22,14 +22,18 @@ coordinates). Every value was cross-checked against SM-DES-004; none were
 guessed. Bin-grid coordinates (offsets) are governed by SM-DES-006, the
 authoritative doc per SM-DES-004 §8.
 
-Three Hardware-source edits are still owed (gated SW-source changes,
-tracked for the next Stream-2 CAD session) -- until they land, the live
-reconcile pre-flight will (correctly) report them:
-  - S0_Hopper local D_HOPPER_INLET_DIA 140 -> 150 (authority is 150;
-    ledger records 150, so the S0 restatement DRIFTS until edited).
+Hardware-source reconciliation COMPLETE (2026-08-07): the three
+previously-owed SW-source edits have landed; the live reconcile
+pre-flight is green (exit 0).
+  - S0_Hopper local D_HOPPER_INLET_DIA -> 150 (now matches ledger +
+    globals). The funnel keeps 150 x 100 (inlet dia x height); the
+    short-axis wall is 58.6 deg (1.4 deg under the >=60 ideal),
+    operator-accepted with the planned ERM vibration motor as
+    anti-bridging mitigation -- see S0 SW_Design_Guide 3.3.
   - globals rename D_Z_HEAD_FUNNEL -> D_Z_FUNNEL_LIP and
-    D_Z_HEAD_GATE -> D_Z_GATE_BOTTOM (canonical = S5's names; the old
-    globals names remain as STRAY warnings until renamed).
+    D_Z_HEAD_GATE -> D_Z_GATE_BOTTOM (canonical = S5's names) applied in
+    lego_sorter_globals.txt AND in the SM-HW-000_Skeleton part (dimension
+    equations repointed to the new globals, old globals deleted).
 """
 
 STATIONS = {
