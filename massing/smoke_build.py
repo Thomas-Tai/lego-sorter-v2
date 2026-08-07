@@ -49,10 +49,9 @@ def main(argv: list[str] | None = None) -> int:
 
     print(format_report(build_and_check(LEDGER)))
 
-    # Optional HTML viewer: needs the local three.js vendor (Task 5 deferred,
-    # not committed, and not required for the STEP/GLB/R7 deliverables above).
-    # Skip -- rather than crash -- when it is absent, so the smoke run still
-    # succeeds on its real outputs.
+    # HTML viewer: self-contained (base64 GLB + vendored three.js). Skip --
+    # rather than crash -- only if the vendor scripts are genuinely absent,
+    # so the smoke run still succeeds on its STEP/GLB/R7 outputs above.
     vendor_dir = Path("massing/viewer/vendor")
     viewer_html = out / "massing.html"
     have_vendor = (vendor_dir / "three.min.js").exists() and (
@@ -64,7 +63,7 @@ def main(argv: list[str] | None = None) -> int:
     else:
         print(
             f"Viewer: SKIPPED -- three.js vendor not present at {vendor_dir} "
-            "(deferred; STEP/GLB/R7 above are the real artifacts)."
+            "(STEP/GLB/R7 above are still the real artifacts)."
         )
     return 0 if ok else 1
 
