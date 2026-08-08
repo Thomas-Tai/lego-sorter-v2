@@ -284,8 +284,11 @@ LEDGER = {
         "bindings": ["globals", "S1a", "S0"],
     },
     "D_HOPPER_INLET_DIA": {
-        # Authority (SM-DES-004 §3.2/§3.3) + globals = 150; S0 local still
-        # restates 140 (stale) -> intentional visible DRIFT until S0 edited.
+        # Authority (SM-DES-004 §3.2/§3.3); globals + S0 both restate 150 --
+        # reconciled clean (Tier-B exit 0, 2026-08-08). Funnel = 150 dia x
+        # 100 tall; short-axis wall = 58.6 deg (1.4 deg under the >=60 ideal),
+        # operator-accepted, with the planned ERM vibration motor as the
+        # anti-bridging mitigation -- see S0 SW_Design_Guide 3.3.
         "value": 150,
         "unit": "mm",
         "lock_id": "SM-DES-004 §3.2",
